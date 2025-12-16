@@ -1,32 +1,30 @@
 <template>
-  <div class="borrow-item list-item">
+  <div class="borrow-item list-item card">
     <div class="borrow-info">
-      <p class="book-name"><strong>书名：</strong>{{ borrow.bookName }}</p>
+      <h3 class="book-name">{{ borrow.bookName }}</h3>
       <p class="book-author"><strong>作者：</strong>{{ borrow.bookAuthor }}</p>
-      <p class="borrow-time"><strong>借阅时间：</strong>{{ borrow.borrowTime }}</p>
-      <p class="overdue" v-if="borrow.overdue">
-        <strong style="color: #f56c6c">状态：</strong>已超时{{ borrow.overdueDays }}天
-      </p>
-      <p class="not-overdue" v-else>
-        <!-- 核心修复：去掉()，computed是属性不是函数 -->
-        <strong style="color: #67c23a">状态：</strong>未超时（剩余{{ 7 - calcRemainingDays }}天）
-      </p>
+      <p class="borrow-time"><strong>借阅时间：</strong>{{ formatDate(borrow.borrowTime) }}</p>
+      <div class="status">
+        <p class="overdue" v-if="borrow.overdue">
+          <span class="icon">⚠️</span>
+          <strong>已超时{{ borrow.overdueDays }}天</strong>
+          <span class="fine">需缴纳罚款：{{ borrow.overdueDays * 0.5 }}元</span>
+        </p>
+        <p class="not-overdue" v-else>
+          <span class="icon">✅</span>
+          <strong>未超时（剩余{{ 7 - calcRemainingDays }}天）</strong>
+        </p>
+      </div>
     </div>
     <button class="btn btn-success return-btn" @click="handleReturn">
-      归还
+      <span class="icon">🔙</span>归还
     </button>
   </div>
 </template>
 
 <script setup>
-/**
- * 借阅项组件：展示单条借阅记录，提供归还按钮
- * 课程设计注释：复用借阅展示逻辑，显示剩余借阅天数/超时时长
- */
 import { defineProps, defineEmits, computed } from 'vue';
-import { isOverdue, calcOverdueDays } from '@/utils/dateUtils';
 
-// 接收props：借阅记录
 const props = defineProps({
   borrow: {
     type: Object,
@@ -35,74 +33,103 @@ const props = defineProps({
   },
 });
 
-// 定义事件：归还
 const emit = defineEmits(['return']);
 
-/**
- * 计算剩余借阅天数（未超时）- computed是属性，不是函数
- */
+// 计算剩余天数
 const calcRemainingDays = computed(() => {
   const borrowDate = new Date(props.borrow.borrowTime);
   const nowDate = new Date();
   const diffTime = nowDate - borrowDate;
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  return 7 - diffDays; // 直接返回数值，模板里直接用，不用加()
+  return diffDays;
 });
 
-/**
- * 触发归还事件
- */
+// 格式化日期
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+};
+
 const handleReturn = () => {
   emit('return', props.borrow.id);
 };
 </script>
 
-<style scoped> /* 加回scoped，避免样式污染 */
+<style scoped>
 .borrow-item {
-  background: #fff;
-  border-radius: 4px;
-  margin-bottom: 10px;
-  padding: 15px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  margin-bottom: 0;
+  padding: 18px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border: 1px solid #e4e7ed;
+  gap: 20px;
+  border: none;
 }
 
 .borrow-info {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
 }
 
-.book-name,
-.book-author,
-.borrow-time,
-.overdue,
-.not-overdue {
+.book-name {
   margin: 0;
-  color: #333;
+  color: var(--text-primary);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.book-author, .borrow-time {
+  margin: 0;
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
+.status {
+  margin-top: 5px;
+}
+
 .overdue {
-  color: #f56c6c;
+  margin: 0;
+  color: var(--danger);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  .fine {
+    margin-left: 10px;
+    font-size: 13px;
+  }
 }
 
 .not-overdue {
-  color: #67c23a;
+  margin: 0;
+  color: var(--success);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .return-btn {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  background: #67c23a;
-  color: #fff;
-  cursor: pointer;
+  min-width: 100px;
+  padding: 10px 16px;
 }
 
-.return-btn:hover {
-  background: #85ce61;
+.icon {
+  font-size: 16px;
+}
+
+@media (max-width: 768px) {
+  .borrow-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .return-btn {
+    width: 100%;
+  }
 }
 </style>

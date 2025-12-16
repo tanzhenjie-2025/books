@@ -1,10 +1,23 @@
 <template>
-  <div class="book-item list-item">
+  <div class="book-item list-item card">
     <div class="book-info">
-      <p class="book-name"><strong>书名：</strong>{{ book.name }}</p>
+      <div class="book-header">
+        <h3 class="book-name">{{ book.name }}</h3>
+        <span class="book-category">{{ book.category }}</span>
+      </div>
       <p class="book-author"><strong>作者：</strong>{{ book.author }}</p>
-      <p class="book-publish"><strong>出版社：</strong>{{ book.publish }}</p>
-      <p class="book-stock"><strong>库存：</strong>{{ book.stock }} 本</p>
+      <p class="book-publish" v-if="book.publish"><strong>出版社：</strong>{{ book.publish }}</p>
+      <p class="book-description" v-if="book.description">
+        <strong>简介：</strong>{{ book.description.length > 80 ? book.description.slice(0, 80) + '...' : book.description }}
+      </p>
+      <div class="book-stats">
+        <span class="stock" :class="{ low: book.stock <= 2 }">
+          库存：{{ book.stock }} 本
+        </span>
+        <span class="borrow-count">
+          借阅次数：{{ book.borrowCount || 0 }}
+        </span>
+      </div>
     </div>
     <button
       class="btn btn-primary borrow-btn"
@@ -17,13 +30,8 @@
 </template>
 
 <script setup>
-/**
- * 图书项组件：展示单本图书信息，提供借阅按钮
- * 课程设计注释：复用图书展示逻辑，禁用库存不足的借阅按钮
- */
-import { defineProps, defineEmits } from 'vue'; // 核心修复：替换emit为defineEmits
+import { defineProps, defineEmits } from 'vue';
 
-// 接收props：图书信息
 const props = defineProps({
   book: {
     type: Object,
@@ -32,12 +40,8 @@ const props = defineProps({
   },
 });
 
-// 定义事件：借阅（核心修复：用defineEmits声明事件，无重复声明）
 const emit = defineEmits(['borrow']);
 
-/**
- * 触发借阅事件
- */
 const handleBorrow = () => {
   emit('borrow', props.book.id);
 };
@@ -45,27 +49,93 @@ const handleBorrow = () => {
 
 <style scoped>
 .book-item {
-  background: #f9fafb;
-  border-radius: 4px;
-  margin-bottom: 10px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  margin-bottom: 0;
+  padding: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  border: none;
 }
 
 .book-info {
+  flex: 1;
   display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.book-name,
-.book-author,
-.book-publish,
-.book-stock {
+.book-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.book-name {
   margin: 0;
-  color: #333;
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 600;
 }
 
-.borrow-btn:disabled {
-  background: #ccc;
-  cursor: not-allowed;
+.book-category {
+  background: rgba(64, 158, 255, 0.1);
+  color: var(--primary);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.book-author, .book-publish {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.book-description {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+  padding-top: 5px;
+}
+
+.book-stats {
+  display: flex;
+  gap: 15px;
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+.stock {
+  color: var(--success);
+  &.low {
+    color: var(--warning);
+  }
+}
+
+.borrow-count {
+  color: var(--text-placeholder);
+}
+
+.borrow-btn {
+  min-width: 100px;
+  padding: 10px 16px;
+}
+
+@media (max-width: 768px) {
+  .book-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .borrow-btn {
+    width: 100%;
+  }
+  .book-description {
+    display: none;
+  }
 }
 </style>

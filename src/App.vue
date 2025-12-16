@@ -1,57 +1,75 @@
 <template>
   <div class="app-wrapper">
-    <!-- 头部导航栏（仅登录后显示，添加空值判断！） -->
+    <!-- 头部导航栏 -->
     <header class="header" v-if="currentUser">
       <div class="container">
         <div class="header-left">
-          <h1 class="logo">图书借阅管理系统</h1>
+          <h1 class="logo">
+            <span class="icon">📚</span>
+            图书借阅管理系统
+          </h1>
         </div>
         <div class="header-right">
-          <!-- 导航菜单（按角色显示） -->
+          <!-- 导航菜单 -->
           <nav class="nav">
-            <router-link to="/home">首页</router-link>
-            <router-link to="/my-borrow">我的借阅</router-link>
-            <router-link to="/borrow-history">借阅历史</router-link>
-            <router-link to="/violation">违规记录</router-link>
-            <!-- 管理员显示用户管理 -->
-            <router-link to="/user-manage" v-if="currentUser.role === 'admin'">用户管理</router-link>
-            <router-link to="/add-book" v-if="currentUser.role === 'admin'">添加书籍</router-link>
+            <router-link
+              to="/home"
+              class="nav-link"
+              active-class="active"
+            >首页</router-link>
+            <router-link
+              to="/my-borrow"
+              class="nav-link"
+              active-class="active"
+            >我的借阅</router-link>
+            <router-link
+              to="/violation"
+              class="nav-link"
+              active-class="active"
+            >违规记录</router-link>
+            <router-link
+              to="/user-manage"
+              class="nav-link"
+              active-class="active"
+              v-if="currentUser.role === 'admin'"
+            >用户管理</router-link>
+            <router-link
+              to="/add-book"
+              class="nav-link"
+              active-class="active"
+              v-if="currentUser.role === 'admin'"
+            >添加书籍</router-link>
           </nav>
           <!-- 用户信息+退出登录 -->
           <div class="user-info">
             <span class="username">{{ currentUser.username }}</span>
             <span class="role">({{ currentUser.role === 'admin' ? '管理员' : '普通用户' }})</span>
-            <button class="btn btn-danger logout-btn" @click="logout">退出登录</button>
+            <button class="btn btn-danger logout-btn" @click="logout">
+              <span class="icon">🚪</span>退出
+            </button>
           </div>
         </div>
       </div>
     </header>
 
-    <!-- 路由出口（页面内容，始终显示） -->
+    <!-- 路由出口（带动画） -->
     <main class="main container">
-      <router-view />
+      <transition name="fade">
+        <router-view />
+      </transition>
     </main>
   </div>
 </template>
 
 <script setup>
-/**
- * 根组件：包含全局导航栏和路由出口
- * 课程设计注释：按用户角色动态显示导航菜单，实现退出登录功能
- * 修复点：添加currentUser空值判断，避免未登录时访问null的属性
- */
 import { useUserStore } from '@/store/userStore';
 import { useRouter } from 'vue-router';
-import { computed } from 'vue'; // 新增：用computed响应式获取currentUser
+import { computed } from 'vue';
 
-// 初始化状态和路由
 const userStore = useUserStore();
 const router = useRouter();
-
-// 修复：用computed包裹，确保响应式+空值安全
 const currentUser = computed(() => userStore.currentUser || null);
 
-// 退出登录方法
 const logout = () => {
   userStore.logout();
   router.push('/login');
@@ -61,10 +79,13 @@ const logout = () => {
 
 <style scoped>
 .header {
-  background: #409eff;
+  background: var(--primary);
   color: #fff;
-  padding: 10px 0;
+  padding: 12px 0;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .header .container {
@@ -77,6 +98,12 @@ const logout = () => {
   font-size: 20px;
   font-weight: bold;
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  .icon {
+    font-size: 24px;
+  }
 }
 
 .header-right {
@@ -85,42 +112,68 @@ const logout = () => {
   gap: 20px;
 }
 
-.nav a {
-  color: #fff;
-  text-decoration: none;
-  margin: 0 15px;
-  font-size: 16px;
+.nav {
+  display: flex;
+  gap: 2px;
 }
 
-.nav a:hover,
-.nav a.router-link-active {
-  text-decoration: underline;
+.nav-link {
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  padding: 8px 15px;
+  border-radius: 4px;
+  font-size: 15px;
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+  }
+  &.active {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    font-weight: 500;
+  }
 }
 
 .user-info {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 15px;
+  padding-left: 15px;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .username {
-  font-weight: bold;
+  font-weight: 500;
+}
+
+.role {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
 }
 
 .logout-btn {
-  padding: 5px 10px;
+  padding: 5px 12px;
   font-size: 14px;
 }
 
 .main {
   padding: 30px 0;
-  min-height: calc(100vh - 80px);
+  min-height: calc(100vh - 70px);
 }
 
-/* 全局容器样式（补充） */
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 20px;
+@media (max-width: 768px) {
+  .header-right {
+    gap: 10px;
+  }
+  .nav-link {
+    padding: 6px 10px;
+    font-size: 14px;
+  }
+  .user-info {
+    gap: 8px;
+  }
+  .username, .role {
+    display: none;
+  }
 }
 </style>
