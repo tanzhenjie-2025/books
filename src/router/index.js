@@ -12,6 +12,9 @@ import MyBorrow from '@/views/MyBorrow.vue';
 import Violation from '@/views/Violation.vue';
 import UserManage from '@/views/UserManage.vue';
 import NotFound from '@/views/NotFound.vue';
+import AddBook from '@/views/AddBook.vue';
+import BookDetail from '@/views/BookDetail.vue';
+import BorrowHistory from '@/views/BorrowHistory.vue';
 
 const routes = [
   {
@@ -46,6 +49,15 @@ const routes = [
     },
   },
   {
+    path: '/borrow-history',
+    name: 'BorrowHistory',
+    component: BorrowHistory,
+    meta: {
+      title: '借阅历史 - 图书借阅管理系统',
+      requireAuth: true,
+    },
+  },
+  {
     path: '/violation',
     name: 'Violation',
     component: Violation,
@@ -65,6 +77,25 @@ const routes = [
     },
   },
   {
+    path: '/add-book',
+    name: 'AddBook',
+    component: AddBook,
+    meta: {
+      title: '添加书籍 - 图书借阅管理系统',
+      requireAuth: true,
+      requireAdmin: true,
+    },
+  },
+  {
+    path: '/book-detail/:id',
+    name: 'BookDetail',
+    component: BookDetail,
+    meta: {
+      title: '图书详情 - 图书借阅管理系统',
+      requireAuth: true,
+    },
+  },
+  {
     path: '/404',
     name: 'NotFound',
     component: NotFound,
@@ -75,18 +106,7 @@ const routes = [
   {
     path: '/:pathMatch(.*)*',
     redirect: '/404', // 匹配所有未定义路由，跳转到404
-  },
-    {
-    path: '/add-book', // 新增书籍路由
-    name: 'AddBook',
-    component: () => import('@/views/AddBook.vue'), // 懒加载组件
-    meta: {
-      title: '添加书籍 - 图书借阅管理系统',
-      requireAuth: true, // 需要登录
-      requireAdmin: true, // 仅管理员可访问
-    },
-  },
-
+  }
 ];
 
 const router = createRouter({

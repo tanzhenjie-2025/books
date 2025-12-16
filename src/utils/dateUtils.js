@@ -44,3 +44,13 @@ export const formatDate = (date) => {
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
+
+/**
+ * 计算逾期罚款金额
+ * @param {Number} overdueDays 逾期天数
+ * @param {Number} rate 每天罚款费率，默认0.5元/天
+ * @returns {Number} 罚款金额
+ */
+export const calculatePenalty = (overdueDays, rate = 0.5) => {
+  return Math.max(0, overdueDays * rate);
+};

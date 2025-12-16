@@ -11,6 +11,7 @@
           <nav class="nav">
             <router-link to="/home">首页</router-link>
             <router-link to="/my-borrow">我的借阅</router-link>
+            <router-link to="/borrow-history">借阅历史</router-link>
             <router-link to="/violation">违规记录</router-link>
             <!-- 管理员显示用户管理 -->
             <router-link to="/user-manage" v-if="currentUser.role === 'admin'">用户管理</router-link>

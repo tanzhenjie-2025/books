@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
+import { calcOverdueDays, isOverdue } from '@/utils/dateUtils';
 
 /**
  * 图书状态管理Store
@@ -27,6 +28,33 @@ export const useBookStore = defineStore('book', () => {
       description: 'JS进阶书籍',
       borrowCount: 1
     },
+    {
+      id: 3,
+      name: '三国演义',
+      author: '罗贯中',
+      category: '文学',
+      stock: 2,
+      description: '中国古典四大名著之一',
+      borrowCount: 5
+    },
+    {
+      id: 4,
+      name: '水浒传',
+      author: '施耐庵',
+      category: '文学',
+      stock: 4,
+      description: '中国古典四大名著之一',
+      borrowCount: 3
+    },
+    {
+      id: 5,
+      name: '机器学习入门',
+      author: '王五',
+      category: '科技',
+      stock: 1,
+      description: '机器学习基础教程',
+      borrowCount: 0
+    },
   ]);
 
   // 借阅记录（初始测试数据，补充超时相关默认值）
@@ -36,6 +64,7 @@ export const useBookStore = defineStore('book', () => {
       userId: 1,
       bookId: 1,
       borrowTime: '2025-11-01',
+      returnTime: null,
       isReturned: false,
       overdue: true,
       overdueDays: 45
@@ -45,10 +74,21 @@ export const useBookStore = defineStore('book', () => {
       userId: 1,
       bookId: 2,
       borrowTime: '2025-12-10',
+      returnTime: null,
       isReturned: false,
       overdue: false,
       overdueDays: 0
     },
+    {
+      id: 3,
+      userId: 1,
+      bookId: 3,
+      borrowTime: '2025-11-05',
+      returnTime: '2025-11-12',
+      isReturned: true,
+      overdue: false,
+      overdueDays: 0
+    }
   ]);
 
   // ========== 响应式计算属性 ==========
@@ -62,17 +102,17 @@ export const useBookStore = defineStore('book', () => {
       if (record.isReturned) return { ...record, overdue: false, overdueDays: 0 };
 
       // 计算借阅天数（当前时间 - 借阅时间）
-      const borrowDate = new Date(record.borrowTime);
-      const nowDate = new Date();
-      const diffTime = nowDate - borrowDate;
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-      // 超过7天即为超时，计算超时天数
-      const overdue = diffDays > 7;
-      const overdueDays = overdue ? diffDays - 7 : 0;
+      const overdue = isOverdue(record.borrowTime);
+      const overdueDays = calcOverdueDays(record.borrowTime);
 
       return { ...record, overdue, overdueDays };
     });
+  });
+
+  // 获取所有分类
+  const getAllCategories = computed(() => {
+    const categories = new Set(books.value.map(book => book.category));
+    return ['全部', ...Array.from(categories)];
   });
 
   // ========== 核心方法 ==========
@@ -120,9 +160,30 @@ export const useBookStore = defineStore('book', () => {
           ...record,
           bookName: book.name || '未知书籍',
           bookAuthor: book.author || '未知作者',
+          // 计算罚款金额，每天0.5元
+          penalty: record.overdueDays * 0.5
         };
       });
     return userBorrows;
+  };
+
+  /**
+   * 获取用户所有借阅记录（包括已归还）
+   * @param {Number} userId 用户ID
+   * @returns {Array} 所有借阅记录
+   */
+  const getAllUserBorrows = (userId) => {
+    return getBorrowRecordsWithOverdue.value
+      .filter(record => record.userId === userId)
+      .map(record => {
+        const book = books.value.find(book => book.id === record.bookId) || {};
+        return {
+          ...record,
+          bookName: book.name || '未知书籍',
+          bookAuthor: book.author || '未知作者',
+          penalty: record.overdueDays * 0.5
+        };
+      });
   };
 
   /**
@@ -143,9 +204,17 @@ export const useBookStore = defineStore('book', () => {
 
     // 标记记录为已归还
     record.isReturned = true;
+    record.returnTime = new Date().toISOString().split('T')[0];
+
     // 对应书籍库存+1
     const book = books.value.find(b => b.id === record.bookId);
     if (book) book.stock += 1;
+
+    // 如果有逾期，增加违规次数
+    if (record.overdueDays > 0) {
+      const userStore = useUserStore();
+      userStore.addViolationCount(record.userId);
+    }
 
     return { success: true, message: '书籍归还成功！' };
   };
@@ -167,12 +236,21 @@ export const useBookStore = defineStore('book', () => {
       return { success: false, message: '书籍库存不足！' };
     }
 
+    // 校验：用户是否已经借阅了这本书且未归还
+    const hasBorrowed = borrowRecords.value.some(
+      r => r.userId === userId && r.bookId === bookId && !r.isReturned
+    );
+    if (hasBorrowed) {
+      return { success: false, message: '您已借阅过这本书，未归还前不能再次借阅！' };
+    }
+
     // 生成新借阅记录（自动初始化超时状态）
     const newRecord = {
-      id: borrowRecords.value.length + 1, // 简易ID生成（也可复用generateNewBookId逻辑）
+      id: borrowRecords.value.length + 1,
       userId,
       bookId,
       borrowTime: new Date().toISOString().split('T')[0], // 格式：YYYY-MM-DD
+      returnTime: null,
       isReturned: false,
       overdue: false,
       overdueDays: 0,
@@ -183,7 +261,21 @@ export const useBookStore = defineStore('book', () => {
     book.stock -= 1;
     book.borrowCount += 1;
 
-    return { success: true, message: '书籍借阅成功！' };
+    return { success: true, message: '书籍借阅成功！请在7天内归还，超期将产生罚款。' };
+  };
+
+  /**
+   * 搜索图书
+   * @param {String} keyword 搜索关键词
+   * @param {String} category 分类筛选
+   * @returns {Array} 符合条件的图书
+   */
+  const searchBooks = (keyword, category) => {
+    return books.value.filter(book => {
+      const matchesKeyword = book.name.includes(keyword) || book.author.includes(keyword);
+      const matchesCategory = category === '全部' || book.category === category;
+      return matchesKeyword && matchesCategory;
+    });
   };
 
   // ========== 导出供外部使用的属性/方法 ==========
@@ -193,11 +285,14 @@ export const useBookStore = defineStore('book', () => {
     borrowRecords,
     // 计算属性
     getBorrowRecordsWithOverdue,
+    getAllCategories,
     // 方法
     generateNewBookId,
     addBook,
     getCurrentUserBorrows,
+    getAllUserBorrows,
     returnBook,
     borrowBook,
+    searchBooks,
   };
 });

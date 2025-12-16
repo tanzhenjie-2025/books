@@ -24,8 +24,8 @@ export const mockUsers = [
   // 管理员
   {
     id: 3,
-    username: 'admin',
-    password: 'admin123',
+    username: '1',
+    password: '1',
     role: 'admin', // 管理员
     violationCount: 0,
     isDisabled: false,
