@@ -1,111 +1,242 @@
 <template>
-  <div class="book-manage">
-    <h2>图书管理</h2>
-    <!-- 新增图书表单 -->
-    <div class="add-form">
-      <input v-model="newBook.name" placeholder="图书名称" />
-      <input v-model="newBook.author" placeholder="作者" />
-      <button @click="addBook">新增图书</button>
+  <div class="book-manage-page">
+    <h2 class="page-title">书籍管理（管理员专属）</h2>
+
+    <!-- 操作按钮 -->
+    <div class="manage-actions">
+      <button class="btn-primary" @click="$router.push('/add-book')">
+        添加新书籍
+      </button>
     </div>
-    <!-- 图书列表 -->
-    <table class="book-table">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>图书名称</th>
-          <th>作者</th>
-          <th>操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="book in bookList" :key="book.id">
-          <td>{{ book.id }}</td>
-          <td>{{ book.name }}</td>
-          <td>{{ book.author }}</td>
-          <td>
-            <button @click="deleteBook(book.id)">删除</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+
+    <!-- 书籍管理表格（支持修改库存） -->
+    <div class="book-manage-table" v-if="bookStore.books.length > 0">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>书名</th>
+            <th>作者</th>
+            <th>分类</th>
+            <th>出版社</th>
+            <th>当前库存</th>
+            <th>借阅次数</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="book in bookStore.books" :key="book.id">
+            <td>{{ book.id }}</td>
+            <td>{{ book.name }}</td>
+            <td>{{ book.author }}</td>
+            <td>{{ book.category }}</td>
+            <td>{{ book.publish }}</td>
+            <td>
+              <input
+                v-model="stockForm[book.id]"
+                type="number"
+                min="0"
+                class="stock-input"
+                @blur="handleStockBlur(book.id)"
+              />
+            </td>
+            <td>{{ book.borrowCount || 0 }}</td>
+            <td>
+              <button
+                class="update-stock-btn"
+                @click="handleUpdateStock(book.id)"
+              >
+                保存库存
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 空数据提示 -->
+    <div class="empty-tip" v-if="bookStore.books.length === 0">
+      暂无书籍，请先添加书籍！
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue';
+import { useBookStore } from '../store/bookStore';
 
-// 模拟图书数据
-const bookList = ref([
-  { id: 1, name: 'Vue.js实战', author: '尤雨溪' },
-  { id: 2, name: 'JavaScript高级程序设计', author: '马特·弗里斯比' }
-])
+const bookStore = useBookStore();
 
-// 新增图书的临时数据
-const newBook = ref({ name: '', author: '' })
+// 库存修改表单（key: bookId, value: stock）
+const stockForm = ref({});
 
-// 新增图书方法
-const addBook = () => {
-  if (!newBook.value.name || !newBook.value.author) {
-    alert('请填写图书名称和作者！')
-    return
+// 初始化库存表单
+const initStockForm = () => {
+  bookStore.books.forEach(book => {
+    stockForm.value[book.id] = book.stock;
+  });
+};
+
+// 失去焦点时恢复原值（未保存的情况下）
+const handleStockBlur = (bookId) => {
+  // 如果输入的值为空/非数字，恢复原值
+  if (stockForm.value[bookId] === '' || isNaN(stockForm.value[bookId])) {
+    stockForm.value[bookId] = bookStore.books.find(b => b.id === bookId).stock;
   }
-  bookList.value.push({
-    id: bookList.value.length + 1,
-    name: newBook.value.name,
-    author: newBook.value.author
-  })
-  // 清空表单
-  newBook.value = { name: '', author: '' }
-}
+};
 
-// 删除图书方法
-const deleteBook = (id) => {
-  bookList.value = bookList.value.filter(book => book.id !== id)
-}
+// 保存库存修改
+const handleUpdateStock = (bookId) => {
+  const newStock = Number(stockForm.value[bookId]);
+  const res = bookStore.updateBookStock(bookId, newStock);
+  alert(res.message);
+
+  // 成功后重新初始化表单
+  if (res.success) {
+    initStockForm();
+  }
+};
+
+// 页面挂载时初始化
+onMounted(() => {
+  initStockForm();
+});
 </script>
 
 <style scoped>
-.book-manage {
-  max-width: 800px;
+.book-manage-page {
+  background: #ffffff;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  max-width: 1200px;
   margin: 0 auto;
 }
-.add-form {
-  margin-bottom: 20px;
-  display: flex;
-  gap: 10px;
+
+.page-title {
+  margin-bottom: 25px;
+  color: #1f2937;
+  border-bottom: 2px solid #409eff;
+  padding-bottom: 10px;
+  font-size: 20px;
 }
-.add-form input {
-  flex: 1;
-  padding: 8px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
+
+.manage-actions {
+  margin-bottom: 25px;
 }
-.add-form button {
-  padding: 8px 20px;
-  background: #3b82f6;
-  color: white;
+
+.btn-primary {
+  padding: 10px 20px;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
+  background-color: #409eff;
+  color: white;
+  font-size: 14px;
   cursor: pointer;
+  transition: all 0.3s ease;
 }
-.book-table {
+
+.btn-primary:hover {
+  background-color: #66b1ff;
+}
+
+/* 书籍管理表格 */
+.book-manage-table {
+  overflow-x: auto;
+}
+
+.table {
   width: 100%;
   border-collapse: collapse;
+  background-color: #ffffff;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  overflow: hidden;
 }
-.book-table th, .book-table td {
-  padding: 12px;
-  border: 1px solid #d1d5db;
+
+.table thead {
+  background-color: #f9fafb;
+}
+
+.table th, .table td {
+  padding: 12px 15px;
   text-align: left;
+  border-bottom: 1px solid #e4e7ed;
 }
-.book-table th {
-  background: #f3f4f6;
+
+.table th {
+  font-size: 14px;
+  color: #1f2937;
+  font-weight: 600;
 }
-.book-table button {
-  padding: 4px 8px;
-  background: #ef4444;
-  color: white;
+
+.table td {
+  font-size: 14px;
+  color: #4b5563;
+}
+
+/* 库存输入框 */
+.stock-input {
+  width: 80px;
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+  outline: none;
+  text-align: center;
+}
+
+.stock-input:focus {
+  border-color: #409eff;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+}
+
+/* 保存库存按钮 */
+.update-stock-btn {
+  padding: 6px 12px;
   border: none;
   border-radius: 4px;
+  background-color: #67c23a;
+  color: white;
+  font-size: 12px;
   cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.update-stock-btn:hover {
+  background-color: #85ce61;
+}
+
+/* 空数据提示 */
+.empty-tip {
+  text-align: center;
+  padding: 50px;
+  font-size: 16px;
+  color: #9ca3af;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  border: 1px dashed #e4e7ed;
+  margin-top: 20px;
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+  .book-manage-page {
+    padding: 20px;
+  }
+
+  .table th, .table td {
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+
+  .stock-input {
+    width: 60px;
+  }
+
+  .update-stock-btn {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
 }
 </style>

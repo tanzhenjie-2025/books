@@ -2,33 +2,44 @@
   <div class="user-manage-page">
     <h2 class="page-title">用户管理（管理员专属）</h2>
 
+    <div class="admin-actions">
+      <button class="btn-primary" @click="$router.push('/book-stats')">
+        查看借阅统计
+      </button>
+    </div>
+
     <!-- 新增用户表单 -->
-    <div class="add-user-form card">
-      <h3>新增用户</h3>
+    <div class="add-user-form">
+      <h3 class="form-title">新增用户</h3>
       <div class="form-item">
-        <label>用户名：</label>
-        <input v-model="newUser.username" placeholder="请输入用户名" />
+        <label class="form-label">用户名：</label>
+        <input
+          v-model="newUser.username"
+          placeholder="请输入用户名"
+          class="form-input"
+        />
       </div>
       <div class="form-item">
-        <label>密码：</label>
+        <label class="form-label">密码：</label>
         <input
           v-model="newUser.password"
           type="password"
           placeholder="默认密码：123456"
+          class="form-input"
         />
       </div>
       <div class="form-item">
-        <label>角色：</label>
-        <select v-model="newUser.role">
+        <label class="form-label">角色：</label>
+        <select v-model="newUser.role" class="form-select">
           <option value="user">普通用户</option>
           <option value="admin">管理员</option>
         </select>
       </div>
-      <button class="btn btn-success" @click="handleAddUser">新增</button>
+      <button class="btn-success" @click="handleAddUser">新增</button>
     </div>
 
     <!-- 用户列表 -->
-    <div class="user-list list">
+    <div class="user-list">
       <UserItem
         v-for="user in userList"
         :key="user.id"
@@ -41,55 +52,42 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
-import { useUserStore } from '@/store/userStore';
-import UserItem from '@/components/UserItem.vue';
+import { ref } from 'vue';
+import { useUserStore } from '../store/userStore';
+import UserItem from '../components/UserItem.vue';
 
-// 初始化用户状态 - 修复：使用computed确保响应式
 const userStore = useUserStore();
-const userList = computed(() => userStore.userList);
+const userList = userStore.userList;
 
-// 新增用户表单数据
 const newUser = ref({
   username: '',
   password: '',
   role: 'user',
 });
 
-/**
- * 处理新增用户
- */
+// 新增用户
 const handleAddUser = () => {
   if (!newUser.value.username) {
     alert('请输入用户名');
     return;
   }
-  // 检查用户名是否重复
-  const isDuplicate = userList.value.some((u) => u.username === newUser.value.username);
+  const isDuplicate = userList.some((u) => u.username === newUser.value.username);
   if (isDuplicate) {
     alert('用户名已存在');
     return;
   }
-  // 调用新增用户方法
   userStore.addUser(newUser.value);
   alert('新增用户成功');
-  // 清空表单
   newUser.value = { username: '', password: '', role: 'user' };
 };
 
-/**
- * 处理编辑用户
- * @param {Object} editUser 编辑后的用户信息
- */
+// 编辑用户
 const handleEditUser = (editUser) => {
   userStore.editUser(editUser);
   alert('编辑用户成功');
 };
 
-/**
- * 处理删除用户
- * @param {Number} userId 用户ID
- */
+// 删除用户
 const handleDeleteUser = (userId) => {
   if (!confirm('确定要删除该用户吗？')) {
     return;
@@ -100,68 +98,137 @@ const handleDeleteUser = (userId) => {
 </script>
 
 <style scoped>
+/* 页面基础样式 */
 .user-manage-page {
-  background: #fff;
-  padding: 20px;
+  background: #ffffff;
+  padding: 30px;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .page-title {
-  margin-bottom: 20px;
-  color: #333;
-  border-bottom: 1px solid #e4e7ed;
+  margin-bottom: 25px;
+  color: #1f2937;
+  border-bottom: 2px solid #409eff;
   padding-bottom: 10px;
+  font-size: 20px;
 }
 
+/* 管理员操作按钮 */
+.admin-actions {
+  margin-bottom: 25px;
+}
+
+.btn-primary {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  background-color: #409eff;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  background-color: #66b1ff;
+}
+
+/* 新增用户表单样式修复 */
 .add-user-form {
-  margin-bottom: 30px;
-  padding: 20px;
-  background: #f9fafb;
+  background-color: #f9fafb;
+  padding: 25px;
   border-radius: 8px;
+  margin-bottom: 30px;
+  border: 1px solid #e4e7ed;
 }
 
-.add-user-form h3 {
+.form-title {
   margin-bottom: 20px;
   color: #409eff;
+  font-size: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e4e7ed;
 }
 
 .form-item {
-  margin-bottom: 15px;
   display: flex;
   align-items: center;
+  margin-bottom: 15px;
   gap: 10px;
 }
 
-.form-item label {
+.form-label {
   width: 80px;
-  font-weight: 500;
+  font-size: 14px;
+  color: #4b5563;
+  text-align: right;
 }
 
-.form-item input, .form-item select {
+.form-input, .form-select {
   flex: 1;
-  padding: 8px 12px;
-  border: 1px solid #dcdfe6;
-  border-radius: 4px;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
   font-size: 14px;
+  outline: none;
+  min-width: 200px;
+}
+
+.form-input:focus, .form-select:focus {
+  border-color: #409eff;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+}
+
+.form-select {
+  height: 40px;
 }
 
 .btn-success {
-  padding: 8px 16px;
-  background: #67c23a;
-  color: white;
+  margin-left: 90px;
+  padding: 10px 25px;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
+  background-color: #67c23a;
+  color: white;
+  font-size: 14px;
   cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 .btn-success:hover {
-  background: #52c41a;
+  background-color: #85ce61;
 }
 
+/* 用户列表样式 */
 .user-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+  .user-manage-page {
+    padding: 20px;
+  }
+
+  .form-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 5px;
+  }
+
+  .form-label {
+    width: 100%;
+    text-align: left;
+  }
+
+  .btn-success {
+    margin-left: 0;
+    width: 100%;
+  }
 }
 </style>

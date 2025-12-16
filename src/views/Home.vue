@@ -1,119 +1,59 @@
 <template>
-  <div class="home-page card">
-    <h2 class="page-title">图书列表（可借阅）</h2>
-
-    <!-- 搜索框 -->
-    <div class="search-box">
-      <input
-        v-model="searchKeyword"
-        placeholder="搜索图书名称或作者..."
-        class="search-input"
-        @input="handleSearch"
+  <div class="home-page">
+    <h2 class="page-title">图书列表</h2>
+    <div class="book-list">
+      <BookItem
+        v-for="book in bookStore.books"
+        :key="book.id"
+        :book="book"
+        @borrow="handleBorrow(book.id)"
       />
-      <button class="btn btn-primary search-btn">
-        <span class="icon">🔍</span>搜索
-      </button>
-    </div>
-
-    <!-- 空状态 -->
-    <div class="empty-tip" v-if="filteredBooks.length === 0">
-      暂无可借阅图书，请联系管理员添加
-    </div>
-
-    <!-- 图书列表 -->
-    <div class="book-list list" v-else>
-      <transition-group name="slide" tag="div">
-        <BookItem
-          v-for="book in filteredBooks"
-          :key="book.id"
-          :book="book"
-          @borrow="handleBorrow"
-        />
-      </transition-group>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
-import { useBookStore } from '@/store/bookStore';
-import { useUserStore } from '@/store/userStore';
-import BookItem from '@/components/BookItem.vue';
+import {useBookStore} from '../store/bookStore';
+import {useUserStore} from '../store/userStore';
+import BookItem from '../components/BookItem.vue';
 
 const bookStore = useBookStore();
 const userStore = useUserStore();
-const bookList = ref([]);
-const searchKeyword = ref('');
 
-// 初始化图书列表
-const initBookList = () => {
-  bookList.value = bookStore.books || [];
-};
-
-// 搜索过滤
-const filteredBooks = computed(() => {
-  if (!searchKeyword.value.trim()) return bookList.value;
-  const keyword = searchKeyword.value.toLowerCase().trim();
-  return bookList.value.filter(book =>
-    book.name.toLowerCase().includes(keyword) ||
-    book.author.toLowerCase().includes(keyword)
-  );
-});
-
-// 借阅处理
+// 借阅书籍
 const handleBorrow = (bookId) => {
-  if (!userStore.currentUser) {
-    alert('请先登录！');
-    return;
-  }
-  const { success, message } = bookStore.borrowBook(userStore.currentUser.id, bookId);
+  const {success, message} = bookStore.borrowBook(userStore.currentUser.id, bookId);
   alert(message);
-  initBookList();
 };
-
-// 搜索处理
-const handleSearch = (e) => {
-  // 搜索逻辑由computed自动处理
-};
-
-onMounted(() => {
-  initBookList();
-});
 </script>
 
 <style scoped>
 .home-page {
-  padding: 25px;
+  background: #ffffff;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-.search-box {
-  display: flex;
-  gap: 10px;
+.page-title {
   margin-bottom: 25px;
-}
-
-.search-input {
-  flex: 1;
-  padding: 10px 15px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-.search-btn {
-  white-space: nowrap;
+  color: #1f2937;
+  border-bottom: 2px solid #409eff;
+  padding-bottom: 10px;
+  font-size: 20px;
 }
 
 .book-list {
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 }
 
 @media (max-width: 768px) {
-  .search-box {
-    flex-direction: column;
-  }
-  .search-btn {
-    width: 100%;
+  .home-page {
+    padding: 20px;
   }
 }
 </style>

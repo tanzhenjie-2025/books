@@ -1,113 +1,69 @@
-/**
- * 用户状态管理（登录、角色、违规次数、用户管理）
- * 课程设计注释：跨组件共享用户数据，统一处理用户相关逻辑
- */
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { mockUsers } from '@/mock/userData';
 
 export const useUserStore = defineStore('user', () => {
-  // 状态：当前登录用户（null=未登录）
+  // 存储当前登录用户
   const currentUser = ref(null);
-  // 状态：所有用户列表（管理员用）
-  const userList = ref([...mockUsers]);
 
-  /**
-   * 登录方法
-   * @param {String} username 用户名
-   * @param {String} password 密码
-   * @returns {Object} { success: Boolean, message: String }
-   */
+  // 模拟用户列表（初始管理员/普通用户）
+  const userList = ref([
+    { id: 1, username: 'admin', password: 'admin123', role: 'admin' },
+    { id: 2, username: 'user1', password: '123456', role: 'user' },
+  ]);
+
+  // 登录方法
   const login = (username, password) => {
-    // 查找用户
     const user = userList.value.find(
-      (u) => u.username === username && u.password === password
+      u => u.username === username && u.password === password
     );
-    if (!user) {
-      return { success: false, message: '用户名或密码错误' };
+    if (user) {
+      currentUser.value = user;
+      return { success: true, message: '登录成功！' };
+    } else {
+      return { success: false, message: '用户名或密码错误！' };
     }
-    // 判断账号是否停用
-    if (user.isDisabled) {
-      return { success: false, message: '账号因违规≥3次已停用' };
-    }
-    // 登录成功，设置当前用户
-    currentUser.value = { ...user };
-    return { success: true, message: '登录成功' };
   };
 
-  /**
-   * 退出登录
-   */
+  // 退出登录
   const logout = () => {
     currentUser.value = null;
   };
 
-  /**
-   * 增加用户违规次数（超时归还时调用）
-   * @param {Number} userId 用户ID
-   */
-  const addViolationCount = (userId) => {
-    const user = userList.value.find((u) => u.id === userId);
-    if (user) {
-      user.violationCount += 1;
-      // 违规≥3次，停用账号
-      if (user.violationCount >= 3) {
-        user.isDisabled = true;
-        // 如果是当前登录用户，强制退出
-        if (currentUser.value && currentUser.value.id === userId) {
-          logout();
-        }
-      }
-      // 更新当前用户状态（如果是当前用户）
-      if (currentUser.value && currentUser.value.id === userId) {
-        currentUser.value.violationCount = user.violationCount;
-        currentUser.value.isDisabled = user.isDisabled;
-      }
-    }
-  };
-
-  /**
-   * 管理员：新增用户
-   * @param {Object} newUser 新用户信息
-   */
+  // 新增用户
   const addUser = (newUser) => {
-    const maxId = Math.max(...userList.value.map((u) => u.id));
+    const newId = Math.max(...userList.value.map(u => u.id), 0) + 1;
     userList.value.push({
-      id: maxId + 1,
+      id: newId,
       username: newUser.username,
       password: newUser.password || '123456', // 默认密码
-      role: newUser.role || 'user',
-      violationCount: 0,
-      isDisabled: false,
+      role: newUser.role || 'user'
     });
   };
 
-  /**
-   * 管理员：编辑用户
-   * @param {Object} editUser 编辑后的用户信息
-   */
+  // 编辑用户
   const editUser = (editUser) => {
-    const index = userList.value.findIndex((u) => u.id === editUser.id);
+    const index = userList.value.findIndex(u => u.id === editUser.id);
     if (index !== -1) {
-      userList.value[index] = { ...editUser };
-      // 如果编辑的是当前登录用户，更新当前用户状态
-      if (currentUser.value && currentUser.value.id === editUser.id) {
-        currentUser.value = { ...editUser };
-      }
+      userList.value[index] = editUser;
     }
   };
 
-  /**
-   * 管理员：删除用户
-   * @param {Number} userId 用户ID
-   */
+  // 删除用户
   const deleteUser = (userId) => {
-    // 不能删除自己
-    if (currentUser.value && currentUser.value.id === userId) {
-      return { success: false, message: '不能删除当前登录的账号' };
+    // 禁止删除最后一个管理员
+    const adminCount = userList.value.filter(u => u.role === 'admin').length;
+    const targetUser = userList.value.find(u => u.id === userId);
+
+    if (targetUser?.role === 'admin' && adminCount <= 1) {
+      return { success: false, message: '不能删除最后一个管理员！' };
     }
-    userList.value = userList.value.filter((u) => u.id !== userId);
-    return { success: true, message: '删除成功' };
+
+    userList.value = userList.value.filter(u => u.id !== userId);
+    // 如果删除的是当前登录用户，退出登录
+    if (currentUser.value?.id === userId) {
+      logout();
+    }
+    return { success: true, message: '删除成功！' };
   };
 
   return {
@@ -115,9 +71,8 @@ export const useUserStore = defineStore('user', () => {
     userList,
     login,
     logout,
-    addViolationCount,
     addUser,
     editUser,
-    deleteUser,
+    deleteUser
   };
 });

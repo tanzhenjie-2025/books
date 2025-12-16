@@ -1,203 +1,87 @@
 <template>
   <div class="add-book-page">
     <h2 class="page-title">添加新书籍</h2>
-
-    <!-- 增加库存区域 -->
-    <div class="add-stock-form card">
-      <h3>增加书籍库存</h3>
-      <div class="form-item">
-        <label>选择书籍：</label>
-        <select v-model="selectedBookId" class="form-input">
-          <option value="">请选择书籍</option>
-          <option v-for="book in books" :value="book.id" :key="book.id">
-            {{ book.name }} (当前库存: {{ book.stock }})
-          </option>
-        </select>
-      </div>
-      <div class="form-item">
-        <label>增加数量：</label>
-        <input
-          v-model.number="addStockCount"
-          type="number"
-          min="1"
-          placeholder="请输入增加的数量（≥1）"
-          class="form-input"
-        />
-      </div>
-      <button
-        class="btn btn-success"
-        @click="handleAddStock"
-        :disabled="!selectedBookId || !addStockCount || addStockCount < 1"
-      >
-        增加库存
-      </button>
-    </div>
-
-    <!-- 添加新书籍表单 -->
     <div class="add-book-form card">
       <div class="form-item">
-        <label>书籍名称：</label>
-        <input
-          v-model="bookName"
-          type="text"
-          placeholder="请输入书籍名称"
-          class="form-input"
-        />
+        <label>书名：</label>
+        <input v-model="newBook.name" placeholder="请输入书名" />
       </div>
       <div class="form-item">
-        <label>书籍作者：</label>
-        <input
-          v-model="author"
-          type="text"
-          placeholder="请输入书籍作者"
-          class="form-input"
-        />
+        <label>作者：</label>
+        <input v-model="newBook.author" placeholder="请输入作者" />
       </div>
       <div class="form-item">
-        <label>书籍分类：</label>
-        <select v-model="category" class="form-input">
-          <option value="">请选择分类</option>
-          <option value="小说">小说</option>
-          <option value="科技">科技</option>
-          <option value="历史">历史</option>
-          <option value="教育">教育</option>
-          <option value="其他">其他</option>
-        </select>
+        <label>分类：</label>
+        <input v-model="newBook.category" placeholder="请输入分类（如：科技/文学）" />
       </div>
       <div class="form-item">
-        <label>库存数量：</label>
-        <input
-          v-model.number="stock"
-          type="number"
-          min="1"
-          placeholder="请输入库存数量（≥1）"
-          class="form-input"
-        />
+        <label>出版社：</label>
+        <input v-model="newBook.publish" placeholder="请输入出版社" />
       </div>
       <div class="form-item">
-        <label>书籍简介：</label>
-        <textarea
-          v-model="description"
-          placeholder="请输入书籍简介（选填）"
-          class="form-textarea"
-        ></textarea>
+        <label>库存：</label>
+        <input v-model.number="newBook.stock" type="number" min="1" placeholder="请输入库存数量" />
       </div>
-      <button
-        class="btn btn-primary submit-btn"
-        @click="handleAddBook"
-        :disabled="isSubmitting"
-      >
-        {{ isSubmitting ? '添加中...' : '确认添加' }}
-      </button>
+      <div class="form-item">
+        <label>简介：</label>
+        <textarea v-model="newBook.description" placeholder="请输入书籍简介"></textarea>
+      </div>
+      <button class="btn btn-success" @click="handleAddBook">添加书籍</button>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue';
-import { useBookStore } from '@/store/bookStore';
+import { useBookStore } from '../store/bookStore';
 import { useRouter } from 'vue-router';
 
-// 表单数据
-const bookName = ref('');
-const author = ref('');
-const category = ref('');
-const stock = ref(1);
-const description = ref('');
-const isSubmitting = ref(false);
-
-// 库存相关变量
-const selectedBookId = ref('');
-const addStockCount = ref(1);
 const bookStore = useBookStore();
-const books = bookStore.books;
 const router = useRouter();
 
-// 表单验证
-const validateForm = () => {
-  if (!bookName.value.trim()) {
-    alert('请输入书籍名称！');
-    return false;
-  }
-  if (!author.value.trim()) {
-    alert('请输入书籍作者！');
-    return false;
-  }
-  if (!category.value) {
-    alert('请选择书籍分类！');
-    return false;
-  }
-  if (!stock.value || stock.value < 1) {
-    alert('库存数量必须≥1！');
-    return false;
-  }
-  return true;
-};
+// 新书籍表单数据
+const newBook = ref({
+  id: 0,
+  name: '',
+  author: '',
+  category: '',
+  publish: '',
+  stock: 1,
+  description: '',
+  borrowCount: 0 // 初始借阅次数为0
+});
 
-// 处理添加书籍逻辑
-const handleAddBook = async () => {
-  if (!validateForm()) return;
-
-  isSubmitting.value = true;
-  try {
-    const newBook = {
-      id: bookStore.generateNewBookId(),
-      name: bookName.value.trim(),
-      author: author.value.trim(),
-      category: category.value,
-      stock: stock.value,
-      description: description.value.trim() || '暂无简介',
-      borrowCount: 0,
-    };
-
-    const { success, message } = bookStore.addBook(newBook);
-    if (success) {
-      alert(message);
-      // 重置表单
-      bookName.value = '';
-      author.value = '';
-      category.value = '';
-      stock.value = 1;
-      description.value = '';
-    } else {
-      alert(message);
-    }
-  } catch (error) {
-    alert('添加书籍失败：' + error.message);
-  } finally {
-    isSubmitting.value = false;
+// 添加书籍
+const handleAddBook = () => {
+  // 基础校验
+  if (!newBook.value.name || !newBook.value.author) {
+    alert('书名和作者不能为空！');
+    return;
   }
-};
-
-// 处理增加库存
-const handleAddStock = () => {
-  if (!selectedBookId.value) {
-    alert('请选择书籍！');
+  if (newBook.value.stock < 1) {
+    alert('库存数量不能小于1！');
     return;
   }
 
-  if (!addStockCount.value || addStockCount.value < 1) {
-    alert('增加数量必须≥1！');
-    return;
-  }
+  // 生成ID
+  newBook.value.id = bookStore.generateNewBookId();
 
-  const book = books.find(b => b.id === parseInt(selectedBookId.value));
-  if (book) {
-    book.stock += addStockCount.value;
-    alert(`《${book.name}》库存已增加 ${addStockCount.value} 本，当前库存：${book.stock} 本`);
+  // 调用添加方法
+  const { success, message } = bookStore.addBook({ ...newBook.value });
+  alert(message);
 
-    // 重置表单
-    selectedBookId.value = '';
-    addStockCount.value = 1;
+  if (success) {
+    router.push('/book-manage');
   }
 };
 </script>
 
 <style scoped>
 .add-book-page {
+  background: #fff;
   padding: 20px;
-  background: #f5f7fa;
-  min-height: calc(100vh - 80px);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
 .page-title {
@@ -207,24 +91,13 @@ const handleAddStock = () => {
   padding-bottom: 10px;
 }
 
-.add-stock-form,
 .add-book-form {
   max-width: 600px;
-  margin: 0 auto 30px;
-  background: #fff;
-  padding: 30px;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-}
-
-.add-stock-form h3 {
-  margin-top: 0;
-  color: #67c23a;
-  margin-bottom: 20px;
+  margin: 0 auto;
 }
 
 .form-item {
-  margin-bottom: 20px;
+  margin-bottom: 15px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -232,54 +105,33 @@ const handleAddStock = () => {
 
 .form-item label {
   font-size: 14px;
-  color: #333;
-  font-weight: 500;
+  color: #666;
 }
 
-.form-input {
-  padding: 10px 12px;
+.form-item input,
+.form-item textarea {
+  padding: 10px;
   border: 1px solid #dcdfe6;
   border-radius: 4px;
   font-size: 14px;
 }
 
-.form-textarea {
-  padding: 10px 12px;
-  border: 1px solid #dcdfe6;
-  border-radius: 4px;
-  font-size: 14px;
+.form-item textarea {
   min-height: 100px;
   resize: vertical;
 }
 
-.submit-btn, .btn-success {
-  width: 100%;
-  padding: 12px 0;
+.btn-success {
+  padding: 10px 20px;
   border: none;
   border-radius: 4px;
-  color: #fff;
-  font-size: 16px;
-  cursor: pointer;
-}
-
-.submit-btn {
-  background: #409eff;
-}
-
-.btn-success {
   background: #67c23a;
+  color: #fff;
+  cursor: pointer;
+  font-size: 16px;
 }
 
-.submit-btn:disabled, .btn-success:disabled {
-  background: #a0cfff;
-  cursor: not-allowed;
-}
-
-.submit-btn:hover:not(:disabled) {
-  background: #66b1ff;
-}
-
-.btn-success:hover:not(:disabled) {
-  background: #52c41a;
+.btn-success:hover {
+  background: #85ce61;
 }
 </style>

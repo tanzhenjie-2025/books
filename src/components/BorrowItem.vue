@@ -1,24 +1,28 @@
 <template>
-  <div class="borrow-item list-item card">
+  <div class="borrow-item list-item">
     <div class="borrow-info">
-      <h3 class="book-name">{{ borrow.bookName }}</h3>
+      <p class="book-name"><strong>书名：</strong>{{ borrow.bookName }}</p>
       <p class="book-author"><strong>作者：</strong>{{ borrow.bookAuthor }}</p>
-      <p class="borrow-time"><strong>借阅时间：</strong>{{ formatDate(borrow.borrowTime) }}</p>
-      <div class="status">
-        <p class="overdue" v-if="borrow.overdue">
-          <span class="icon">⚠️</span>
-          <strong>已超时{{ borrow.overdueDays }}天</strong>
-          <span class="fine">需缴纳罚款：{{ borrow.overdueDays * 0.5 }}元</span>
-        </p>
-        <p class="not-overdue" v-else>
-          <span class="icon">✅</span>
-          <strong>未超时（剩余{{ 7 - calcRemainingDays }}天）</strong>
-        </p>
-      </div>
+      <p class="borrow-time"><strong>借阅时间：</strong>{{ borrow.borrowTime }}</p>
+      <p class="overdue" v-if="borrow.overdue">
+        <strong style="color: #f56c6c">状态：</strong>已超时{{ borrow.overdueDays }}天
+      </p>
+      <p class="not-overdue" v-else>
+        <strong style="color: #67c23a">状态：</strong>未超时（剩余{{ calcRemainingDays }}天）
+      </p>
     </div>
-    <button class="btn btn-success return-btn" @click="handleReturn">
-      <span class="icon">🔙</span>归还
-    </button>
+    <div class="action-buttons">
+      <button
+        class="btn btn-warning renew-btn"
+        @click="handleRenew"
+        :disabled="!canRenew"
+      >
+        续借
+      </button>
+      <button class="btn btn-success return-btn" @click="handleReturn">
+        归还
+      </button>
+    </div>
   </div>
 </template>
 
@@ -33,7 +37,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['return']);
+const emit = defineEmits(['return', 'renew']);
 
 // 计算剩余天数
 const calcRemainingDays = computed(() => {
@@ -41,95 +45,93 @@ const calcRemainingDays = computed(() => {
   const nowDate = new Date();
   const diffTime = nowDate - borrowDate;
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays;
+  return 7 - diffDays;
 });
 
-// 格式化日期
-const formatDate = (dateString) => {
-  const date = new Date(dateString);
-  return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
-};
+// 是否可续借（剩余<3天+未超时）
+const canRenew = computed(() => {
+  if (props.borrow.overdue) return false;
+  return calcRemainingDays.value < 3;
+});
 
 const handleReturn = () => {
   emit('return', props.borrow.id);
+};
+
+const handleRenew = () => {
+  emit('renew', props.borrow.id);
 };
 </script>
 
 <style scoped>
 .borrow-item {
-  background: var(--bg-secondary);
-  border-radius: 8px;
-  margin-bottom: 0;
-  padding: 18px;
+  background: #fff;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  padding: 15px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 20px;
-  border: none;
+  border: 1px solid #e4e7ed;
 }
 
 .borrow-info {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
 }
 
-.book-name {
+.book-name,
+.book-author,
+.borrow-time,
+.overdue,
+.not-overdue {
   margin: 0;
-  color: var(--text-primary);
-  font-size: 17px;
-  font-weight: 600;
-}
-
-.book-author, .borrow-time {
-  margin: 0;
-  color: var(--text-secondary);
+  color: #333;
   font-size: 14px;
-}
-
-.status {
-  margin-top: 5px;
 }
 
 .overdue {
-  margin: 0;
-  color: var(--danger);
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  .fine {
-    margin-left: 10px;
-    font-size: 13px;
-  }
+  color: #f56c6c;
 }
 
 .not-overdue {
-  margin: 0;
-  color: var(--success);
-  font-size: 14px;
+  color: #67c23a;
+}
+
+.action-buttons {
   display: flex;
-  align-items: center;
-  gap: 5px;
+  gap: 10px;
 }
 
 .return-btn {
-  min-width: 100px;
-  padding: 10px 16px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background: #67c23a;
+  color: #fff;
+  cursor: pointer;
 }
 
-.icon {
-  font-size: 16px;
+.return-btn:hover {
+  background: #85ce61;
 }
 
-@media (max-width: 768px) {
-  .borrow-item {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .return-btn {
-    width: 100%;
-  }
+.renew-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background: #e6a23c;
+  color: #fff;
+  cursor: pointer;
+}
+
+.renew-btn:disabled {
+  background: #f3d19e;
+  cursor: not-allowed;
+}
+
+.renew-btn:hover:not(:disabled) {
+  background: #f56c6c;
 }
 </style>
