@@ -1,176 +1,167 @@
 <template>
-  <div class="user-manage-page card">
-    <h2 class="page-title">用户管理</h2>
+  <div class="user-manage-page">
+    <h2 class="page-title">用户管理（管理员专属）</h2>
 
     <!-- 新增用户表单 -->
-    <div class="add-user-form card" style="margin-bottom: 30px;">
-      <h3 style="margin-bottom: 20px; font-size: 16px; color: var(--text-primary);">新增用户</h3>
+    <div class="add-user-form card">
+      <h3>新增用户</h3>
       <div class="form-item">
         <label>用户名：</label>
-        <div class="input-wrap">
-          <input
-            v-model="newUser.username"
-            placeholder="请输入用户名"
-            maxlength="20"
-          />
-        </div>
+        <input v-model="newUser.username" placeholder="请输入用户名" />
       </div>
       <div class="form-item">
         <label>密码：</label>
-        <div class="input-wrap">
-          <input
-            v-model="newUser.password"
-            type="password"
-            placeholder="请输入密码"
-            maxlength="20"
-          />
-          <span class="form-tip">6-20位字符</span>
-        </div>
+        <input
+          v-model="newUser.password"
+          type="password"
+          placeholder="默认密码：123456"
+        />
       </div>
       <div class="form-item">
         <label>角色：</label>
-        <div class="input-wrap">
-          <select v-model="newUser.role">
-            <option value="user">普通用户</option>
-            <option value="admin">管理员</option>
-          </select>
-        </div>
+        <select v-model="newUser.role">
+          <option value="user">普通用户</option>
+          <option value="admin">管理员</option>
+        </select>
       </div>
-      <div class="form-submit">
-        <button class="btn btn-primary" @click="addUser">
-          <span class="icon">➕</span>新增用户
-        </button>
-      </div>
+      <button class="btn btn-success" @click="handleAddUser">新增</button>
     </div>
 
     <!-- 用户列表 -->
-    <div class="user-list">
-      <h3 style="margin-bottom: 15px; font-size: 16px; color: var(--text-primary);">用户列表</h3>
-      <div class="empty-tip" v-if="userList.length === 0">
-        暂无用户，请添加
-      </div>
-      <div class="list" v-else>
-        <transition-group name="slide" tag="div">
-          <div class="list-item" v-for="user in userList" :key="user.id">
-            <div class="user-info">
-              <span class="username">{{ user.username }}</span>
-              <span class="role-tag" :class="user.role === 'admin' ? 'admin-tag' : 'user-tag'">
-                {{ user.role === 'admin' ? '管理员' : '普通用户' }}
-              </span>
-            </div>
-            <div class="user-actions">
-              <button class="btn btn-danger" @click="deleteUser(user.id)">
-                <span class="icon">🗑️</span>删除
-              </button>
-            </div>
-          </div>
-        </transition-group>
-      </div>
+    <div class="user-list list">
+      <UserItem
+        v-for="user in userList"
+        :key="user.id"
+        :user="user"
+        @edit="handleEditUser"
+        @delete="handleDeleteUser"
+      />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed } from 'vue';
 import { useUserStore } from '@/store/userStore';
+import UserItem from '@/components/UserItem.vue';
 
+// 初始化用户状态 - 修复：使用computed确保响应式
 const userStore = useUserStore();
-const userList = ref([]);
+const userList = computed(() => userStore.userList);
+
+// 新增用户表单数据
 const newUser = ref({
   username: '',
   password: '',
-  role: 'user'
+  role: 'user',
 });
 
-// 初始化用户列表
-const initUserList = () => {
-  userList.value = userStore.users || [];
+/**
+ * 处理新增用户
+ */
+const handleAddUser = () => {
+  if (!newUser.value.username) {
+    alert('请输入用户名');
+    return;
+  }
+  // 检查用户名是否重复
+  const isDuplicate = userList.value.some((u) => u.username === newUser.value.username);
+  if (isDuplicate) {
+    alert('用户名已存在');
+    return;
+  }
+  // 调用新增用户方法
+  userStore.addUser(newUser.value);
+  alert('新增用户成功');
+  // 清空表单
+  newUser.value = { username: '', password: '', role: 'user' };
 };
 
-// 新增用户
-const addUser = () => {
-  if (!newUser.value.username.trim()) {
-    alert('请输入用户名！');
+/**
+ * 处理编辑用户
+ * @param {Object} editUser 编辑后的用户信息
+ */
+const handleEditUser = (editUser) => {
+  userStore.editUser(editUser);
+  alert('编辑用户成功');
+};
+
+/**
+ * 处理删除用户
+ * @param {Number} userId 用户ID
+ */
+const handleDeleteUser = (userId) => {
+  if (!confirm('确定要删除该用户吗？')) {
     return;
   }
-  if (!newUser.value.password.trim()) {
-    alert('请输入密码！');
-    return;
-  }
-  const { success, message } = userStore.addUser({
-    id: Date.now().toString(),
-    ...newUser.value
-  });
+  const { success, message } = userStore.deleteUser(userId);
   alert(message);
-  if (success) {
-    // 重置表单
-    newUser.value = { username: '', password: '', role: 'user' };
-    initUserList();
-  }
 };
-
-// 删除用户
-const deleteUser = (userId) => {
-  if (confirm('确定要删除该用户吗？')) {
-    const { success, message } = userStore.deleteUser(userId);
-    alert(message);
-    if (success) {
-      initUserList();
-    }
-  }
-};
-
-onMounted(() => {
-  initUserList();
-});
 </script>
 
 <style scoped>
 .user-manage-page {
-  padding: 25px;
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.page-title {
+  margin-bottom: 20px;
+  color: #333;
+  border-bottom: 1px solid #e4e7ed;
+  padding-bottom: 10px;
 }
 
 .add-user-form {
+  margin-bottom: 30px;
   padding: 20px;
-  background: var(--bg-secondary);
+  background: #f9fafb;
   border-radius: 8px;
-  box-shadow: var(--shadow);
 }
 
-.user-list {
-  margin-top: 20px;
+.add-user-form h3 {
+  margin-bottom: 20px;
+  color: #409eff;
 }
 
-.user-info {
+.form-item {
+  margin-bottom: 15px;
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.role-tag {
-  padding: 2px 8px;
+.form-item label {
+  width: 80px;
+  font-weight: 500;
+}
+
+.form-item input, .form-item select {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #dcdfe6;
   border-radius: 4px;
-  font-size: 12px;
-  color: #fff;
+  font-size: 14px;
 }
 
-.admin-tag {
-  background: var(--primary);
+.btn-success {
+  padding: 8px 16px;
+  background: #67c23a;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
 }
 
-.user-tag {
-  background: var(--success);
+.btn-success:hover {
+  background: #52c41a;
 }
 
-.user-actions {
+.user-list {
   display: flex;
-  gap: 8px;
-}
-
-/* 适配小屏幕 */
-@media (max-width: 768px) {
-  .form-submit {
-    padding-left: 80px;
-  }
+  flex-direction: column;
+  gap: 10px;
 }
 </style>

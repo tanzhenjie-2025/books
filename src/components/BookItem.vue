@@ -1,36 +1,35 @@
 <template>
-  <div class="book-item list-item card">
+  <div class="book-item list-item">
     <div class="book-info">
-      <div class="book-header">
-        <h3 class="book-name">{{ book.name }}</h3>
-        <span class="book-category">{{ book.category }}</span>
-      </div>
+      <p class="book-name"><strong>书名：</strong>{{ book.name }}</p>
       <p class="book-author"><strong>作者：</strong>{{ book.author }}</p>
-      <p class="book-publish" v-if="book.publish"><strong>出版社：</strong>{{ book.publish }}</p>
-      <p class="book-description" v-if="book.description">
-        <strong>简介：</strong>{{ book.description.length > 80 ? book.description.slice(0, 80) + '...' : book.description }}
-      </p>
-      <div class="book-stats">
-        <span class="stock" :class="{ low: book.stock <= 2 }">
-          库存：{{ book.stock }} 本
-        </span>
-        <span class="borrow-count">
-          借阅次数：{{ book.borrowCount || 0 }}
-        </span>
-      </div>
+      <p class="book-category"><strong>分类：</strong>{{ book.category }}</p>
+      <p class="book-stock"><strong>库存：</strong>{{ book.stock }} 本</p>
+      <p class="book-description"><strong>简介：</strong>{{ book.description }}</p>
     </div>
-    <button
-      class="btn btn-primary borrow-btn"
-      @click="handleBorrow"
-      :disabled="book.stock <= 0"
-    >
-      {{ book.stock <= 0 ? '库存不足' : '借阅' }}
-    </button>
+    <div class="book-actions">
+      <button
+        class="btn btn-primary borrow-btn"
+        @click="handleBorrow"
+        :disabled="book.stock <= 0"
+      >
+        {{ book.stock <= 0 ? '库存不足' : '借阅' }}
+      </button>
+      <button
+        class="btn btn-secondary comment-btn"
+        @click="handleComment"
+      >
+        评论
+      </button>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { defineProps, defineEmits } from 'vue';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 const props = defineProps({
   book: {
@@ -45,97 +44,69 @@ const emit = defineEmits(['borrow']);
 const handleBorrow = () => {
   emit('borrow', props.book.id);
 };
+
+const handleComment = () => {
+  router.push(`/book-comments/${props.book.id}`);
+};
 </script>
 
 <style scoped>
 .book-item {
-  background: var(--bg-secondary);
-  border-radius: 8px;
-  margin-bottom: 0;
-  padding: 18px;
+  background: #f9fafb;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  padding: 15px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 20px;
-  border: none;
 }
 
 .book-info {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
 
-.book-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-.book-name {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.book-category {
-  background: rgba(64, 158, 255, 0.1);
-  color: var(--primary);
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.book-author, .book-publish {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 14px;
-}
-
+.book-name,
+.book-author,
+.book-category,
+.book-stock,
 .book-description {
   margin: 0;
-  color: var(--text-secondary);
-  font-size: 14px;
-  line-height: 1.5;
-  padding-top: 5px;
+  color: #333;
+  min-width: 150px;
 }
 
-.book-stats {
+.book-actions {
   display: flex;
-  gap: 15px;
-  margin-top: 8px;
-  font-size: 14px;
-}
-
-.stock {
-  color: var(--success);
-  &.low {
-    color: var(--warning);
-  }
-}
-
-.borrow-count {
-  color: var(--text-placeholder);
+  gap: 10px;
 }
 
 .borrow-btn {
-  min-width: 100px;
-  padding: 10px 16px;
+  padding: 8px 16px;
+  background: #409eff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
 }
 
-@media (max-width: 768px) {
-  .book-item {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .borrow-btn {
-    width: 100%;
-  }
-  .book-description {
-    display: none;
-  }
+.borrow-btn:disabled {
+  background: #a0cfff;
+  cursor: not-allowed;
+}
+
+.comment-btn {
+  padding: 8px 16px;
+  background: #67c23a;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.comment-btn:hover {
+  background: #52c41a;
 }
 </style>

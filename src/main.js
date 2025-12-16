@@ -1,15 +1,18 @@
 import { createApp } from 'vue';
+import { createPinia } from 'pinia'; // 导入Pinia
 import App from './App.vue';
 import router from './router/index.js';
-import pinia from './store/index.js'; // 导入Pinia
-import './style.css'; // 确保全局样式导入
+import './style.css';
 
-// 调试：确认Pinia导入成功
-console.log('Pinia实例：', pinia);
+// 1. 创建Pinia实例
+const pinia = createPinia();
 
+// 2. 创建Vue应用并按顺序使用插件
 const app = createApp(App);
-app.use(pinia); // 先挂载Pinia，再挂载路由
-app.use(router);
+app.use(pinia); // 先挂载Pinia
+app.use(router); // 后挂载Router（确保路由守卫能获取到Pinia）
+
+// 3. 挂载应用
 app.mount('#app');
 
 console.log('Vue应用挂载成功');
