@@ -111,6 +111,14 @@ export const useBookStore = defineStore('book', () => {
     });
   });
 
+  // 补充：获取当前用户未归还的借阅记录（修复my-borrow调用）
+  const getCurrentUserBorrows = (userId) => {
+    if (!userId) return [];
+    return getBorrowRecordsWithOverdue.value.filter(
+      record => !record.returned && record.userId === userId
+    );
+  };
+
   // 添加书籍（管理员）
   const addBook = async (newBook) => {
     try {
@@ -222,6 +230,31 @@ export const useBookStore = defineStore('book', () => {
     }
   };
 
+  // 新增：续借书籍方法
+  const renewBook = async (recordId, userId) => {
+    if (!recordId || !userId) {
+      return { success: false, message: '记录ID和用户ID不能为空' };
+    }
+    try {
+      const data = await request.put(`/borrows/renew/${recordId}`, null, {
+        params: { userId }
+      });
+      if (data.success) {
+        await loadBorrowRecords(userId);
+      }
+      return {
+        success: data.success,
+        message: data.message || '续借成功'
+      };
+    } catch (error) {
+      console.error('续借书籍失败:', error);
+      return {
+        success: false,
+        message: error.message || '续借失败（仅可续借1次，且未逾期）'
+      };
+    }
+  };
+
   // 补充：获取用户所有借阅记录（修复BorrowHistoryPage调用的方法）
   const getAllUserBorrows = (userId) => {
     if (!userId) return [];
@@ -245,6 +278,8 @@ export const useBookStore = defineStore('book', () => {
     deleteBook,
     borrowBook,
     returnBook,
-    getAllUserBorrows // 导出补充的方法
+    renewBook, // 导出续借方法
+    getAllUserBorrows,
+    getCurrentUserBorrows // 导出未归还记录方法
   };
 });

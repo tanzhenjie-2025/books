@@ -1,10 +1,10 @@
 <template>
   <div class="my-borrow-page">
     <h2 class="page-title">我的借阅记录</h2>
-    <div class="empty-tip" v-if="currentUserBorrows && currentUserBorrows.length === 0">
+    <div class="empty-tip" v-if="currentUserBorrows.length === 0">
       暂无未归还的借阅记录，可前往首页借阅图书
     </div>
-    <div class="borrow-list list" v-else-if="currentUserBorrows">
+    <div class="borrow-list list" v-else>
       <BorrowItem
         v-for="borrow in currentUserBorrows"
         :key="borrow.id"
@@ -12,9 +12,6 @@
         @return="handleReturn"
         @renew="handleRenew"
       />
-    </div>
-    <div class="loading-tip" v-else>
-      加载中...
     </div>
   </div>
 </template>
@@ -29,31 +26,53 @@ const bookStore = useBookStore();
 const userStore = useUserStore();
 const currentUserBorrows = ref([]);
 
-// 初始化借阅记录
-const initUserBorrows = () => {
+// 初始化借阅记录（加载未归还的）
+const initUserBorrows = async () => {
   if (!userStore.currentUser) {
     currentUserBorrows.value = [];
     return;
   }
-  currentUserBorrows.value = bookStore.getCurrentUserBorrows(userStore.currentUser.id);
+
+  // 先加载书籍和借阅记录
+  await bookStore.loadBooks();
+  const loadResult = await bookStore.loadBorrowRecords(userStore.currentUser.id);
+
+  if (loadResult.success) {
+    // 获取未归还的借阅记录
+    currentUserBorrows.value = bookStore.getBorrowRecordsWithOverdue.value.filter(
+      record => !record.returned && record.userId === userStore.currentUser.id
+    );
+  } else {
+    alert(loadResult.message);
+  }
 };
 
-// 归还书籍
-const handleReturn = (borrowId) => {
-  const { success, message } = bookStore.returnBook(borrowId);
-  alert(message);
-  initUserBorrows();
+// 归还书籍（修复：传递userId）
+const handleReturn = async (borrowId) => {
+  if (!userStore.currentUser) {
+    alert('请先登录！');
+    return;
+  }
+  const returnResult = await bookStore.returnBook(borrowId, userStore.currentUser.id);
+  alert(returnResult.message);
+  // 刷新数据
+  await initUserBorrows();
 };
 
-// 续借书籍
-const handleRenew = (borrowId) => {
-  const { success, message } = bookStore.renewBook(borrowId);
-  alert(message);
-  initUserBorrows();
+// 续借书籍（新增实现）
+const handleRenew = async (borrowId) => {
+  if (!userStore.currentUser) {
+    alert('请先登录！');
+    return;
+  }
+  const renewResult = await bookStore.renewBook(borrowId, userStore.currentUser.id);
+  alert(renewResult.message);
+  // 刷新数据
+  await initUserBorrows();
 };
 
-onMounted(() => {
-  initUserBorrows();
+onMounted(async () => {
+  await initUserBorrows();
 });
 </script>
 
@@ -63,6 +82,7 @@ onMounted(() => {
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  margin: 20px;
 }
 
 .page-title {
@@ -70,9 +90,10 @@ onMounted(() => {
   color: #333;
   border-bottom: 1px solid #e4e7ed;
   padding-bottom: 10px;
+  font-size: 18px;
 }
 
-.empty-tip, .loading-tip {
+.empty-tip {
   text-align: center;
   padding: 50px 0;
   color: #999;
