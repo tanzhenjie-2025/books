@@ -1,6 +1,6 @@
 <template>
   <div class="book-manage-page">
-    <h2 class="page-title">书籍管理（管理员专属）</h2>
+    <h2 class="page-title">书籍添加（管理员专属）</h2>
 
     <!-- 操作按钮 -->
     <div class="manage-actions">
@@ -62,8 +62,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { useBookStore } from '../store/bookStore';
+import {ref, onMounted} from 'vue';
+import {useBookStore} from '../store/bookStore';
 
 const bookStore = useBookStore();
 
@@ -80,25 +80,37 @@ const initStockForm = () => {
 // 失去焦点时恢复原值（未保存的情况下）
 const handleStockBlur = (bookId) => {
   // 如果输入的值为空/非数字，恢复原值
+  const book = bookStore.books.find(b => b.id === bookId);
+  if (!book) return;
+
   if (stockForm.value[bookId] === '' || isNaN(stockForm.value[bookId])) {
-    stockForm.value[bookId] = bookStore.books.find(b => b.id === bookId).stock;
+    stockForm.value[bookId] = book.stock;
   }
 };
 
-// 保存库存修改
-const handleUpdateStock = (bookId) => {
-  const newStock = Number(stockForm.value[bookId]);
-  const res = bookStore.updateBookStock(bookId, newStock);
-  alert(res.message);
+// 保存库存修改（改为异步方法，正确处理返回结果）
+const handleUpdateStock = async (bookId) => {
+  try {
+    const newStock = Number(stockForm.value[bookId]);
+    // 调用新增的库存更新方法
+    const res = await bookStore.updateBookStock(bookId, newStock);
+    alert(res.message);
 
-  // 成功后重新初始化表单
-  if (res.success) {
-    initStockForm();
+    // 成功后重新初始化表单
+    if (res.success) {
+      initStockForm();
+    }
+  } catch (error) {
+    console.error('保存库存失败:', error);
+    alert('保存库存失败：' + error.message);
   }
 };
 
-// 页面挂载时初始化
-onMounted(() => {
+// 页面挂载时初始化（先加载书籍，再初始化表单）
+onMounted(async () => {
+  // 先加载最新的书籍列表
+  await bookStore.loadBooks();
+  // 再初始化库存表单
   initStockForm();
 });
 </script>

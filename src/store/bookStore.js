@@ -17,7 +17,7 @@ export const useBookStore = defineStore('book', () => {
         ...book,
         id: Number(book.id), // 强制转数字
         stock: Number(book.stock),
-        borrowCount: Number(book.borrowCount)
+        borrowCount: Number(book.borrowCount || 0)
       }));
       console.log("【书籍列表】加载完成（ID已转数字）：", books.value);
       return { success: true };
@@ -104,7 +104,7 @@ export const useBookStore = defineStore('book', () => {
       const recordBookId = Number(record.bookId);
       // 第二步：精准匹配书籍（ID类型一致）
       const book = books.value.find(book => Number(book.id) === recordBookId) || {};
-      
+
       console.log(`【关联书籍】recordId=${record.id}，recordBookId=${recordBookId}，匹配到书籍：`, book);
 
       // 第三步：判断是否归还（兼容字段）
@@ -179,7 +179,13 @@ export const useBookStore = defineStore('book', () => {
   // 更新书籍（管理员）
   const updateBook = async (book) => {
     try {
-      const data = await request.put('/books', book);
+      // 确保book对象的id和stock是数字
+      const bookToUpdate = {
+        ...book,
+        id: Number(book.id),
+        stock: Number(book.stock)
+      };
+      const data = await request.put('/books', bookToUpdate);
       const bookIdNum = Number(book.id);
       const index = books.value.findIndex(b => Number(b.id) === bookIdNum);
       if (index !== -1) {
@@ -187,14 +193,48 @@ export const useBookStore = defineStore('book', () => {
           ...data,
           id: Number(data.id),
           stock: Number(data.stock),
-          borrowCount: Number(data.borrowCount)
+          borrowCount: Number(data.borrowCount || 0)
         };
       }
       return { success: true, message: '书籍更新成功！' };
     } catch (error) {
+      console.error('更新书籍失败:', error);
       return {
         success: false,
         message: error.message || '更新书籍失败'
+      };
+    }
+  };
+
+  // 新增：单独更新库存的方法（解决前端调用报错）
+  const updateBookStock = async (bookId, newStock) => {
+    try {
+      // 校验参数
+      const bookIdNum = Number(bookId);
+      const stockNum = Number(newStock);
+      if (isNaN(bookIdNum) || isNaN(stockNum) || stockNum < 0) {
+        return { success: false, message: '库存必须是大于等于0的数字！' };
+      }
+
+      // 找到原书籍信息
+      const book = books.value.find(b => Number(b.id) === bookIdNum);
+      if (!book) {
+        return { success: false, message: '书籍不存在！' };
+      }
+
+      // 构造更新对象（保留原书籍所有字段，仅更新库存）
+      const updateData = {
+        ...book,
+        stock: stockNum
+      };
+
+      // 调用通用更新方法
+      return await updateBook(updateData);
+    } catch (error) {
+      console.error('更新库存失败:', error);
+      return {
+        success: false,
+        message: error.message || '更新库存失败'
       };
     }
   };
@@ -218,7 +258,7 @@ export const useBookStore = defineStore('book', () => {
   const borrowBook = async (userId, bookId) => {
     const userIdNum = Number(userId);
     const bookIdNum = Number(bookId);
-    
+
     if (!userIdNum || !bookIdNum) {
       return { success: false, message: '用户ID和书籍ID不能为空' };
     }
@@ -258,17 +298,17 @@ export const useBookStore = defineStore('book', () => {
   const returnBook = async (recordId, userId) => {
     const recordIdNum = Number(recordId);
     const userIdNum = Number(userId);
-    
+
     if (!recordIdNum || !userIdNum) {
       return { success: false, message: '记录ID和用户ID不能为空' };
     }
-    
+
     try {
       const data = await request.put(`/borrows/return/${recordIdNum}`);
       if (data.success) {
         // 先刷新书籍，再刷新借阅记录（确保数据最新）
-        await loadBooks(); 
-        await loadBorrowRecords(userIdNum); 
+        await loadBooks();
+        await loadBorrowRecords(userIdNum);
         await loadViolations(userIdNum);
       }
       return {
@@ -288,11 +328,11 @@ export const useBookStore = defineStore('book', () => {
   const renewBook = async (recordId, userId) => {
     const recordIdNum = Number(recordId);
     const userIdNum = Number(userId);
-    
+
     if (!recordIdNum || !userIdNum) {
       return { success: false, message: '记录ID和用户ID不能为空' };
     }
-    
+
     try {
       const data = await request.put(`/borrows/renew/${recordIdNum}`, null, {
         params: { userId: userIdNum }
@@ -331,6 +371,7 @@ export const useBookStore = defineStore('book', () => {
     loadViolations,
     addBook,
     updateBook,
+    updateBookStock, // 导出库存更新方法
     deleteBook,
     borrowBook,
     returnBook,
