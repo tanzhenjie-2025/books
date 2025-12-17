@@ -7,7 +7,7 @@
         <div class="nav-menu">
           <router-link to="/home" class="nav-link">首页</router-link>
           <!-- 修复：ROLE_ADMIN 大小写匹配 + 登录状态判断 -->
-          <router-link to="/my-borrow" class="nav-link" v-if="userStore.currentUser">我的借阅</router-link>
+
           <router-link to="/borrow-history" class="nav-link" v-if="userStore.currentUser">借阅历史</router-link>
           <router-link to="/violation" class="nav-link" v-if="userStore.currentUser">违规记录</router-link>
           <!-- 管理员专属导航（修复role判断） -->

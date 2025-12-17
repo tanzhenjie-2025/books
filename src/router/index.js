@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useUserStore } from '@/store/userStore';
 
-// 导入页面组件（修正个人中心组件路径为UserCenter.vue）
+// 导入页面组件（补充AddBook组件）
 import Login from '@/views/Login.vue';
 import Home from '@/views/Home.vue';
 import MyBorrow from '@/views/MyBorrow.vue';
@@ -9,12 +9,12 @@ import Violation from '@/views/Violation.vue';
 import BookManage from '@/views/BookManage.vue';
 import UserManage from '@/views/UserManage.vue';
 import BorrowHistory from '@/views/BorrowHistory.vue';
-// 修正：导入个人中心组件（文件名UserCenter.vue）
 import UserCenter from '@/views/UserCenter.vue';
-// 管理员面板组件（文件名Admin.vue）
 import Admin from '@/views/Admin.vue';
+// 新增：导入AddBook组件
+import AddBook from '@/views/AddBook.vue';
 
-// 路由规则（补充/user路由，对应UserCenter组件）
+// 路由规则（添加/add-book路由）
 const routes = [
   {
     path: '/',
@@ -31,6 +31,13 @@ const routes = [
     name: 'Home',
     component: Home,
     meta: { requiresAuth: true } // 需要登录
+  },
+  // 新增：添加书籍路由
+  {
+    path: '/add-book',
+    name: 'AddBook',
+    component: AddBook,
+    meta: { requiresAuth: true, requiresAdmin: true } // 需要管理员权限
   },
   {
     path: '/my-borrow',
@@ -50,14 +57,12 @@ const routes = [
     component: Violation,
     meta: { requiresAuth: true } // 需要登录
   },
-  // 修正：个人中心路由（对应UserCenter.vue组件）
   {
     path: '/user',
-    name: 'UserCenter', // 可选：name改为UserCenter更语义化
+    name: 'UserCenter',
     component: UserCenter,
     meta: { requiresAuth: true } // 需要登录
   },
-  // 管理员面板路由（对应Admin.vue组件）
   {
     path: '/admin',
     name: 'Admin',
@@ -89,7 +94,7 @@ const router = createRouter({
   routes
 });
 
-// 路由守卫：验证登录状态和权限（原有逻辑完全保留）
+// 路由守卫：验证登录状态和权限
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore();
   const isLoggedIn = !!userStore.currentUser; // 是否登录
@@ -111,7 +116,7 @@ router.beforeEach((to, from, next) => {
     return;
   }
 
-  // 需要管理员权限的路由（/admin、/book-manage、/user-manage）
+  // 需要管理员权限的路由
   if (to.meta.requiresAdmin) {
     const isAdmin = userStore.currentUser?.role === 'ROLE_ADMIN';
     if (!isAdmin) {
