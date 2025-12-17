@@ -39,20 +39,18 @@ import { useRouter } from 'vue-router';
 const bookStore = useBookStore();
 const router = useRouter();
 
-// 新书籍表单数据
+// 新书籍表单数据（移除了id字段，borrowCount后端默认0无需前端传）
 const newBook = ref({
-  id: 0,
   name: '',
   author: '',
   category: '',
   publish: '',
   stock: 1,
-  description: '',
-  borrowCount: 0 // 初始借阅次数为0
+  description: ''
 });
 
-// 添加书籍
-const handleAddBook = () => {
+// 添加书籍（修改为async函数，处理异步调用）
+const handleAddBook = async () => {
   // 基础校验
   if (!newBook.value.name || !newBook.value.author) {
     alert('书名和作者不能为空！');
@@ -63,11 +61,8 @@ const handleAddBook = () => {
     return;
   }
 
-  // 生成ID
-  newBook.value.id = bookStore.generateNewBookId();
-
-  // 调用添加方法
-  const { success, message } = bookStore.addBook({ ...newBook.value });
+  // 异步调用添加书籍方法（关键：加await）
+  const { success, message } = await bookStore.addBook({ ...newBook.value });
   alert(message);
 
   if (success) {
