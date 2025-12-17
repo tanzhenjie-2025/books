@@ -33,47 +33,76 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useBookStore } from '@/store/bookStore';
 import { useUserStore } from '@/store/userStore';
 import BorrowItem from '@/components/BorrowItem.vue';
 
+// 初始化Store
 const bookStore = useBookStore();
 const userStore = useUserStore();
+
+// 响应式数据
 const allRecords = ref([]);
 const statusFilter = ref('all');
 const filteredRecords = ref([]);
 
-const initRecords = () => {
+// 初始化借阅记录（修复核心bug）
+const initRecords = async () => {
+  // 未登录则清空
   if (!userStore.currentUser) {
     allRecords.value = [];
+    filteredRecords.value = [];
     return;
   }
 
-  // 获取用户所有借阅记录（包括已归还）
+  // 先加载最新的借阅记录
+  const loadResult = await bookStore.loadBorrowRecords(userStore.currentUser.id);
+  if (!loadResult.success) {
+    alert(loadResult.message);
+    return;
+  }
+
+  // 获取用户所有借阅记录（调用修复后的方法）
   allRecords.value = bookStore.getAllUserBorrows(userStore.currentUser.id);
+  // 初始化筛选
   filterRecords();
 };
 
+// 筛选记录
 const filterRecords = () => {
   if (statusFilter.value === 'all') {
     filteredRecords.value = [...allRecords.value];
   } else if (statusFilter.value === 'returned') {
-    filteredRecords.value = allRecords.value.filter(r => r.isReturned);
+    // 匹配后端字段：returned → 前端显示用isReturned兼容
+    filteredRecords.value = allRecords.value.filter(r => r.returned || r.isReturned);
   } else {
-    filteredRecords.value = allRecords.value.filter(r => !r.isReturned);
+    filteredRecords.value = allRecords.value.filter(r => !(r.returned || r.isReturned));
   }
 };
 
-const handleReturn = (borrowId) => {
-  const { success, message } = bookStore.returnBook(borrowId);
-  alert(message);
-  if (success) {
-    initRecords();
+// 处理归还（修复异步调用）
+const handleReturn = async (borrowId) => {
+  if (!userStore.currentUser) {
+    alert('请先登录');
+    return;
+  }
+  // 调用归还方法（传递recordId和userId）
+  const returnResult = await bookStore.returnBook(borrowId, userStore.currentUser.id);
+  alert(returnResult.message);
+  // 归还成功后刷新记录
+  if (returnResult.success) {
+    await initRecords();
   }
 };
 
-onMounted(initRecords);
+// 页面挂载时初始化
+onMounted(async () => {
+  // 先加载书籍（关联书籍名称）
+  await bookStore.loadBooks();
+  // 再加载借阅记录
+  await initRecords();
+});
 </script>
 
 <style scoped>
@@ -82,6 +111,7 @@ onMounted(initRecords);
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  margin: 20px;
 }
 
 .page-title {
@@ -89,6 +119,7 @@ onMounted(initRecords);
   color: #333;
   border-bottom: 1px solid #e4e7ed;
   padding-bottom: 10px;
+  font-size: 18px;
 }
 
 .filter-bar {
@@ -99,6 +130,8 @@ onMounted(initRecords);
   padding: 8px 12px;
   border: 1px solid #dcdfe6;
   border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
 }
 
 .list-header {
@@ -107,11 +140,18 @@ onMounted(initRecords);
   padding: 12px;
   background: #f5f7fa;
   border-radius: 4px 4px 0 0;
+  font-size: 14px;
 }
 
 .list-header-item {
   flex: 1;
   text-align: left;
+  padding: 0 8px;
+}
+
+.history-list {
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
 }
 
 .empty-tip {

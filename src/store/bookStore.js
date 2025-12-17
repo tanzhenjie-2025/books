@@ -12,60 +12,87 @@ export const useBookStore = defineStore('book', () => {
   const loadBooks = async () => {
     try {
       const data = await request.get('/books');
-      books.value = data;
+      books.value = data || []; // 兜底空数组
+      return { success: true };
     } catch (error) {
       console.error('加载书籍失败:', error);
-      return { success: false, message: error.response?.data || '加载失败' };
+      return {
+        success: false,
+        message: error.message || '加载书籍失败'
+      };
     }
-    return { success: true };
   };
 
-  // 加载借阅记录
+  // 加载指定用户的借阅记录
   const loadBorrowRecords = async (userId) => {
+    if (!userId) {
+      return { success: false, message: '用户ID不能为空' };
+    }
     try {
       const data = await request.get(`/borrows/user/${userId}`);
-      borrowRecords.value = data;
+      borrowRecords.value = data || [];
+      return { success: true };
     } catch (error) {
       console.error('加载借阅记录失败:', error);
-      return { success: false, message: error.response?.data || '加载失败' };
+      return {
+        success: false,
+        message: error.message || '加载借阅记录失败'
+      };
     }
-    return { success: true };
   };
 
   // 加载所有借阅记录（管理员）
   const loadAllBorrowRecords = async () => {
     try {
       const data = await request.get('/borrows');
-      borrowRecords.value = data;
+      borrowRecords.value = data || [];
+      return { success: true };
     } catch (error) {
       console.error('加载所有借阅记录失败:', error);
-      return { success: false, message: error.response?.data || '加载失败' };
+      return {
+        success: false,
+        message: error.message || '加载所有借阅记录失败'
+      };
     }
-    return { success: true };
   };
 
-  // 加载违规记录
+  // 加载指定用户的违规记录
   const loadViolations = async (userId) => {
+    if (!userId) {
+      return { success: false, message: '用户ID不能为空' };
+    }
     try {
       const data = await request.get(`/violations/user/${userId}`);
-      violations.value = data;
+      violations.value = data || [];
+      return { success: true };
     } catch (error) {
       console.error('加载违规记录失败:', error);
-      return { success: false, message: error.response?.data || '加载失败' };
+      return {
+        success: false,
+        message: error.message || '加载违规记录失败'
+      };
     }
-    return { success: true };
   };
 
-  // 计算属性：带逾期状态的借阅记录
+  // 计算属性：带逾期状态+书籍信息的借阅记录
   const getBorrowRecordsWithOverdue = computed(() => {
     return borrowRecords.value.map(record => {
-      if (record.returned) return { ...record, overdue: false, overdueDays: 0 };
+      // 已归还的记录直接返回
+      if (record.returned) {
+        return {
+          ...record,
+          overdue: false,
+          overdueDays: 0,
+          bookName: '未知书籍',
+          bookAuthor: '未知作者'
+        };
+      }
 
+      // 计算逾期天数
       const borrowDate = new Date(record.borrowTime);
       const nowDate = new Date();
       const diffTime = nowDate - borrowDate;
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
       const overdue = diffDays > 7;
       const overdueDays = overdue ? diffDays - 7 : 0;
 
@@ -77,12 +104,14 @@ export const useBookStore = defineStore('book', () => {
         overdue,
         overdueDays,
         bookName: book.name || '未知书籍',
-        bookAuthor: book.author || '未知作者'
+        bookAuthor: book.author || '未知作者',
+        // 兼容后端字段（isReturned ↔ returned）
+        isReturned: record.returned
       };
     });
   });
 
-  // 添加书籍
+  // 添加书籍（管理员）
   const addBook = async (newBook) => {
     try {
       const data = await request.post('/books', newBook);
@@ -91,12 +120,12 @@ export const useBookStore = defineStore('book', () => {
     } catch (error) {
       return {
         success: false,
-        message: error.response?.data || '添加书籍失败'
+        message: error.message || '添加书籍失败'
       };
     }
   };
 
-  // 更新书籍
+  // 更新书籍（管理员）
   const updateBook = async (book) => {
     try {
       const data = await request.put('/books', book);
@@ -108,12 +137,12 @@ export const useBookStore = defineStore('book', () => {
     } catch (error) {
       return {
         success: false,
-        message: error.response?.data || '更新书籍失败'
+        message: error.message || '更新书籍失败'
       };
     }
   };
 
-  // 删除书籍
+  // 删除书籍（管理员）
   const deleteBook = async (bookId) => {
     try {
       await request.delete(`/books/${bookId}`);
@@ -122,32 +151,57 @@ export const useBookStore = defineStore('book', () => {
     } catch (error) {
       return {
         success: false,
-        message: error.response?.data || '删除书籍失败'
+        message: error.message || '删除书籍失败'
       };
     }
   };
 
-  // 借阅书籍
+  // 借阅书籍（核心修复：参数传递 + 错误处理）
   const borrowBook = async (userId, bookId) => {
+    // 前置校验
+    if (!userId || !bookId) {
+      return { success: false, message: '用户ID和书籍ID不能为空' };
+    }
+
+    // 检查书籍库存
+    const targetBook = books.value.find(b => b.id === bookId);
+    if (!targetBook) {
+      return { success: false, message: '书籍不存在' };
+    }
+    if (targetBook.stock <= 0) {
+      return { success: false, message: '书籍库存不足，无法借阅' };
+    }
+
     try {
-      const data = await request.post('/borrows', {}, {
+      // 优化：POST请求body传null（后端接收参数是@RequestParam）
+      const data = await request.post('/borrows', null, {
         params: { userId, bookId }
       });
+
+      // 借阅成功后刷新数据
       if (data.success) {
         await loadBorrowRecords(userId);
         await loadBooks();
       }
-      return data;
+      return {
+        success: data.success,
+        message: data.message || '借阅成功'
+      };
     } catch (error) {
+      const errMsg = error.message || `借阅失败：${error.response?.data?.message || '服务器错误'}`;
+      console.error('借阅书籍失败:', errMsg);
       return {
         success: false,
-        message: error.response?.data || '借阅失败'
+        message: errMsg
       };
     }
   };
 
   // 归还书籍
   const returnBook = async (recordId, userId) => {
+    if (!recordId || !userId) {
+      return { success: false, message: '记录ID和用户ID不能为空' };
+    }
     try {
       const data = await request.put(`/borrows/return/${recordId}`);
       if (data.success) {
@@ -155,20 +209,33 @@ export const useBookStore = defineStore('book', () => {
         await loadBooks();
         await loadViolations(userId);
       }
-      return data;
+      return {
+        success: data.success,
+        message: data.message || '归还成功'
+      };
     } catch (error) {
+      console.error('归还书籍失败:', error);
       return {
         success: false,
-        message: error.response?.data || '归还失败'
+        message: error.message || '归还书籍失败'
       };
     }
   };
 
+  // 补充：获取用户所有借阅记录（修复BorrowHistoryPage调用的方法）
+  const getAllUserBorrows = (userId) => {
+    if (!userId) return [];
+    // 先加载再返回（确保数据最新）
+    return getBorrowRecordsWithOverdue.value.filter(record => record.userId === userId);
+  };
+
   return {
+    // 数据
     books,
     borrowRecords,
     violations,
     getBorrowRecordsWithOverdue,
+    // 方法
     loadBooks,
     loadBorrowRecords,
     loadAllBorrowRecords,
@@ -177,6 +244,7 @@ export const useBookStore = defineStore('book', () => {
     updateBook,
     deleteBook,
     borrowBook,
-    returnBook
+    returnBook,
+    getAllUserBorrows // 导出补充的方法
   };
 });
