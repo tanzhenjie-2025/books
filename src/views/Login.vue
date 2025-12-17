@@ -1,100 +1,169 @@
 <template>
-  <div class="login-page">
-    <div class="login-card">
-      <h2 class="login-title">图书管理系统登录</h2>
-      <div class="form-item">
-        <label>用户名：</label>
-        <input v-model="username" placeholder="请输入用户名" />
+  <div class="login-container">
+    <div class="login-form">
+      <h2>图书借阅管理系统</h2>
+      <div class="form-group">
+        <label>用户名</label>
+        <input v-model="username" type="text" placeholder="请输入用户名" />
       </div>
-      <div class="form-item">
-        <label>密码：</label>
+      <div class="form-group">
+        <label>密码</label>
         <input v-model="password" type="password" placeholder="请输入密码" />
       </div>
-      <button class="login-btn" @click="handleLogin">登录</button>
+      <div class="form-actions">
+        <button @click="handleLogin" class="login-btn">登录</button>
+        <button @click="toggleRegister" class="register-btn">
+          {{ isRegister ? '返回登录' : '注册账号' }}
+        </button>
+      </div>
+      <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
+
+      <!-- 注册表单 -->
+      <div v-if="isRegister" class="register-form">
+        <hr>
+        <div class="form-group">
+          <label>确认密码</label>
+          <input v-model="confirmPwd" type="password" placeholder="请确认密码" />
+        </div>
+        <button @click="handleRegister" class="register-submit">提交注册</button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue';
-import { useUserStore } from '../store/userStore';
 import { useRouter } from 'vue-router';
+import { useUserStore } from '@/store/userStore';
 
 const username = ref('');
 const password = ref('');
-const userStore = useUserStore();
+const confirmPwd = ref('');
+const errorMessage = ref('');
+const isRegister = ref(false);
 const router = useRouter();
+const userStore = useUserStore();
+
+// 切换登录/注册
+const toggleRegister = () => {
+  isRegister.value = !isRegister.value;
+  errorMessage.value = '';
+  confirmPwd.value = '';
+};
 
 // 登录处理
-const handleLogin = () => {
+const handleLogin = async () => {
   if (!username.value || !password.value) {
-    alert('请输入用户名和密码！');
+    errorMessage.value = '请输入用户名和密码';
     return;
   }
 
-  const { success, message } = userStore.login(username.value, password.value);
-  alert(message);
-  if (success) {
+  const result = await userStore.login(username.value, password.value);
+  if (result.success) {
     router.push('/home');
+  } else {
+    errorMessage.value = result.message;
+  }
+};
+
+// 注册处理
+const handleRegister = async () => {
+  if (!username.value || !password.value) {
+    errorMessage.value = '请输入用户名和密码';
+    return;
+  }
+  if (password.value !== confirmPwd.value) {
+    errorMessage.value = '两次密码输入不一致';
+    return;
+  }
+
+  const result = await userStore.register({
+    username: username.value,
+    password: password.value
+  });
+
+  if (result.success) {
+    alert('注册成功，请登录');
+    toggleRegister();
+  } else {
+    errorMessage.value = result.message;
   }
 };
 </script>
 
 <style scoped>
-.login-page {
+.login-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: calc(100vh - 60px);
-  background-color: #f5f7fa;
+  height: 100vh;
+  background-color: #f5f5f5;
 }
 
-.login-card {
+.login-form {
   background: white;
-  padding: 40px;
+  padding: 2rem;
   border-radius: 8px;
-  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
-  width: 400px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  width: 300px;
 }
 
-.login-title {
-  text-align: center;
-  margin-bottom: 30px;
-  color: #409eff;
+.form-group {
+  margin-bottom: 1rem;
 }
 
-.form-item {
-  margin-bottom: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
 }
 
-.form-item label {
-  font-size: 14px;
-  color: #666;
-}
-
-.form-item input {
-  padding: 10px;
-  border: 1px solid #dcdfe6;
+.form-group input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
   border-radius: 4px;
-  font-size: 14px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 1rem;
 }
 
 .login-btn {
-  width: 100%;
-  padding: 12px;
+  flex: 1;
+  padding: 10px;
   background-color: #409eff;
   color: white;
   border: none;
   border-radius: 4px;
-  font-size: 16px;
   cursor: pointer;
-  transition: background-color 0.3s;
 }
 
-.login-btn:hover {
-  background-color: #66b1ff;
+.register-btn {
+  flex: 1;
+  padding: 10px;
+  background-color: #67c23a;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.register-submit {
+  width: 100%;
+  padding: 10px;
+  background-color: #909399;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+.error-message {
+  color: #f56c6c;
+  text-align: center;
+  margin-top: 1rem;
 }
 </style>
