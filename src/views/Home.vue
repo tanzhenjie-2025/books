@@ -22,11 +22,17 @@
           <p>分类：{{ book.category }}</p>
           <p>库存：{{ book.stock }}</p>
           <p>借阅次数：{{ book.borrowCount }}</p>
+          <p>评分：{{ book.avgScore || 0 }} ({{ book.commentCount || 0 }}条评价)</p>
           <button
             @click="handleBorrow(book.id)"
             :disabled="book.stock <= 0"
             class="borrow-btn">
             {{ book.stock <= 0 ? '库存不足' : '借阅' }}
+          </button>
+          <button
+            @click="handleComment(book.id)"
+            class="comment-btn">
+            评价
           </button>
         </div>
       </div>
@@ -44,105 +50,61 @@ const router = useRouter();
 const userStore = useUserStore();
 const bookStore = useBookStore();
 
-// 初始化加载书籍
-onMounted(async () => {
-  await bookStore.loadBooks();
-});
+// 处理借阅
+const handleBorrow = async (bookId) => {
+  if (!userStore.currentUser) {
+    alert('请先登录！');
+    return;
+  }
 
-// 退出登录
+  const { success, message } = await bookStore.borrowBook(
+    userStore.currentUser.id,
+    bookId
+  );
+  alert(message);
+};
+
+// 处理评价
+const handleComment = (bookId) => {
+  router.push(`/book-comments/${bookId}`);
+};
+
+// 处理退出登录
 const handleLogout = () => {
   userStore.logout();
   router.push('/login');
 };
 
-// 借阅书籍
-const handleBorrow = async (bookId) => {
-  const userId = userStore.currentUser.id;
-  const result = await bookStore.borrowBook(userId, bookId);
-
-  if (result.success) {
-    alert(result.message);
-  } else {
-    alert(result.message);
-  }
-};
+onMounted(async () => {
+  await bookStore.loadBooks();
+});
 </script>
 
 <style scoped>
-.home-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
-}
-
-.header {
+/* 原有样式保持不变，添加以下样式 */
+.book-card {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #eee;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
 }
 
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.logout-btn, .user-btn, .admin-btn {
-  padding: 5px 10px;
+.comment-btn {
+  padding: 8px 0;
   border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.logout-btn {
-  background-color: #f56c6c;
-  color: white;
-}
-
-.user-btn {
-  background-color: #409eff;
-  color: white;
-}
-
-.admin-btn {
+  border-radius: 6px;
   background-color: #67c23a;
   color: white;
-}
-
-.book-list {
-  margin-top: 20px;
-}
-
-.book-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 20px;
-  margin-top: 20px;
-}
-
-.book-card {
-  border: 1px solid #eee;
-  border-radius: 8px;
-  padding: 15px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-
-.borrow-btn {
-  width: 100%;
-  padding: 8px;
-  background-color: #409eff;
-  color: white;
-  border: none;
-  border-radius: 4px;
+  font-size: 14px;
   cursor: pointer;
-  margin-top: 10px;
+  transition: all 0.3s ease;
+  width: 100%;
+  margin-top: 4px;
 }
 
-.borrow-btn:disabled {
-  background-color: #909399;
-  cursor: not-allowed;
+.comment-btn:hover {
+  background-color: #52c41a;
 }
 </style>

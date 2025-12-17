@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useUserStore } from '@/store/userStore';
 
-// 导入页面组件（补充AddBook组件）
+// 导入页面组件（补充AddBook组件 + 新增BookComments组件）
 import Login from '@/views/Login.vue';
 import Home from '@/views/Home.vue';
 import MyBorrow from '@/views/MyBorrow.vue';
@@ -13,8 +13,10 @@ import UserCenter from '@/views/UserCenter.vue';
 import Admin from '@/views/Admin.vue';
 // 新增：导入AddBook组件
 import AddBook from '@/views/AddBook.vue';
+// 新增：导入书籍评价页面组件
+import BookComments from '@/views/BookComments.vue';
 
-// 路由规则（添加/add-book路由）
+// 路由规则（添加/add-book路由 + 新增BookComments路由）
 const routes = [
   {
     path: '/',
@@ -38,6 +40,13 @@ const routes = [
     name: 'AddBook',
     component: AddBook,
     meta: { requiresAuth: true, requiresAdmin: true } // 需要管理员权限
+  },
+  // 新增：书籍评价页面路由
+  {
+    path: '/book-comments/:id',
+    name: 'BookComments',
+    component: BookComments,
+    meta: { requiresAuth: true } // 需要登录，普通用户即可访问
   },
   {
     path: '/my-borrow',

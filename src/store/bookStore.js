@@ -17,7 +17,9 @@ export const useBookStore = defineStore('book', () => {
         ...book,
         id: Number(book.id), // 强制转数字
         stock: Number(book.stock),
-        borrowCount: Number(book.borrowCount || 0)
+        borrowCount: Number(book.borrowCount || 0),
+        avgScore: Number(book.avgScore || 0),
+        commentCount: Number(book.commentCount || 0)
       }));
       console.log("【书籍列表】加载完成（ID已转数字）：", books.value);
       return { success: true };
@@ -53,6 +55,62 @@ export const useBookStore = defineStore('book', () => {
       return {
         success: false,
         message: error.message || '加载借阅记录失败'
+      };
+    }
+  };
+
+  // 获取书籍评价
+  const getBookComments = async (bookId) => {
+    if (!bookId) {
+      return { success: false, message: '书籍ID不能为空' };
+    }
+
+    try {
+      const data = await request.get(`/comments/book/${bookId}`);
+      return {
+        success: data.success,
+        message: data.message || '获取评价成功',
+        data: data.data || []
+      };
+    } catch (error) {
+      const errMsg = error.message || `获取评价失败：${error.response?.data?.message || '服务器错误'}`;
+      console.error('获取书籍评价失败:', errMsg);
+      return {
+        success: false,
+        message: errMsg
+      };
+    }
+  };
+
+  // 添加书籍评价
+  const addBookComment = async (comment) => {
+    // 校验参数
+    if (!comment.userId || !comment.bookId || comment.score === undefined) {
+      return { success: false, message: '用户ID、书籍ID和评分不能为空' };
+    }
+
+    if (comment.score < 1 || comment.score > 5) {
+      return { success: false, message: '评分必须在1-5之间' };
+    }
+
+    try {
+      const data = await request.post('/comments', comment);
+
+      // 添加成功后刷新书籍列表（更新评分）
+      if (data.success) {
+        await loadBooks();
+      }
+
+      return {
+        success: data.success,
+        message: data.message || '评价提交成功，等待审核'
+      };
+    } catch (error) {
+      const errMsg = error.message || `提交评价失败：${error.response?.data?.message || '服务器错误'}`;
+      console.error('添加书籍评价失败:', errMsg);
+      return {
+        success: false,
+        message: errMsg
       };
     }
   };
@@ -97,17 +155,17 @@ export const useBookStore = defineStore('book', () => {
     }
   };
 
-  // 计算属性：带逾期状态+书籍信息的借阅记录（终极修复）
+  // 计算属性：带逾期状态+书籍信息的借阅记录
   const getBorrowRecordsWithOverdue = computed(() => {
     return borrowRecords.value.map(record => {
-      // 第一步：强制bookId为数字（双重保险）
+      // 第一步：强制bookId为数字
       const recordBookId = Number(record.bookId);
-      // 第二步：精准匹配书籍（ID类型一致）
+      // 第二步：精准匹配书籍
       const book = books.value.find(book => Number(book.id) === recordBookId) || {};
 
       console.log(`【关联书籍】recordId=${record.id}，recordBookId=${recordBookId}，匹配到书籍：`, book);
 
-      // 第三步：判断是否归还（兼容字段）
+      // 第三步：判断是否归还
       const isReturned = !!record.returned || !!record.isReturned;
 
       // 已归还记录
@@ -132,7 +190,7 @@ export const useBookStore = defineStore('book', () => {
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
       const overdue = diffDays > 7;
       const overdueDays = overdue ? diffDays - 7 : 0;
-      const remainingDays = Math.max(0, 7 - diffDays); // 确保剩余天数不为负
+      const remainingDays = Math.max(0, 7 - diffDays);
 
       return {
         ...record,
@@ -165,7 +223,9 @@ export const useBookStore = defineStore('book', () => {
         ...data,
         id: Number(data.id),
         stock: Number(data.stock),
-        borrowCount: Number(data.borrowCount || 0)
+        borrowCount: Number(data.borrowCount || 0),
+        avgScore: Number(data.avgScore || 0),
+        commentCount: Number(data.commentCount || 0)
       });
       return { success: true, message: '书籍添加成功！' };
     } catch (error) {
@@ -193,7 +253,9 @@ export const useBookStore = defineStore('book', () => {
           ...data,
           id: Number(data.id),
           stock: Number(data.stock),
-          borrowCount: Number(data.borrowCount || 0)
+          borrowCount: Number(data.borrowCount || 0),
+          avgScore: Number(data.avgScore || 0),
+          commentCount: Number(data.commentCount || 0)
         };
       }
       return { success: true, message: '书籍更新成功！' };
@@ -206,7 +268,7 @@ export const useBookStore = defineStore('book', () => {
     }
   };
 
-  // 新增：单独更新库存的方法（解决前端调用报错）
+  // 单独更新库存的方法
   const updateBookStock = async (bookId, newStock) => {
     try {
       // 校验参数
@@ -222,7 +284,7 @@ export const useBookStore = defineStore('book', () => {
         return { success: false, message: '书籍不存在！' };
       }
 
-      // 构造更新对象（保留原书籍所有字段，仅更新库存）
+      // 构造更新对象
       const updateData = {
         ...book,
         stock: stockNum
@@ -294,7 +356,7 @@ export const useBookStore = defineStore('book', () => {
     }
   };
 
-  // 归还书籍（确保刷新顺序 + 类型统一）
+  // 归还书籍
   const returnBook = async (recordId, userId) => {
     const recordIdNum = Number(recordId);
     const userIdNum = Number(userId);
@@ -306,7 +368,7 @@ export const useBookStore = defineStore('book', () => {
     try {
       const data = await request.put(`/borrows/return/${recordIdNum}`);
       if (data.success) {
-        // 先刷新书籍，再刷新借阅记录（确保数据最新）
+        // 先刷新书籍，再刷新借阅记录
         await loadBooks();
         await loadBorrowRecords(userIdNum);
         await loadViolations(userIdNum);
@@ -353,7 +415,7 @@ export const useBookStore = defineStore('book', () => {
     }
   };
 
-  // 获取用户所有借阅记录（类型统一）
+  // 获取用户所有借阅记录
   const getAllUserBorrows = (userId) => {
     if (!userId) return [];
     const userIdNum = Number(userId);
@@ -371,12 +433,14 @@ export const useBookStore = defineStore('book', () => {
     loadViolations,
     addBook,
     updateBook,
-    updateBookStock, // 导出库存更新方法
+    updateBookStock,
     deleteBook,
     borrowBook,
     returnBook,
     renewBook,
     getAllUserBorrows,
-    getCurrentUserBorrows
+    getCurrentUserBorrows,
+    getBookComments,
+    addBookComment
   };
 });

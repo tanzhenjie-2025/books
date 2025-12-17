@@ -1,9 +1,9 @@
 import axios from 'axios';
 
-// 创建axios实例（baseURL对应后端Context Path=/api）
+// 创建axios实例（核心：baseURL包含/api上下文路径，匹配后端配置）
 const request = axios.create({
-  baseURL: 'http://localhost:8080/api',
-  timeout: 5000,
+  baseURL: 'http://localhost:8080/api', // 匹配server.servlet.context-path=/api
+  timeout: 10000, // 延长超时时间，避免评价提交超时
   withCredentials: true, // 保留跨域凭证
   headers: {
     'Content-Type': 'application/json;charset=utf-8' // 统一请求头
@@ -40,9 +40,10 @@ request.interceptors.response.use(
       localStorage.removeItem('token');
       // 跳转到登录页（兼容vue-router）
       window.location.href = '/login';
+      alert('登录状态已过期，请重新登录');
     }
-    // 统一错误提示
-    const errMsg = error.response?.data?.message || error.response?.data || '请求失败';
+    // 统一错误提示（友好化）
+    const errMsg = error.response?.data?.message || error.message || '服务器内部错误，请稍后重试';
     console.error('响应错误:', errMsg);
     return Promise.reject({ ...error, message: errMsg });
   }
