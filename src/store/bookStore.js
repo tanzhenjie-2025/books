@@ -8,11 +8,18 @@ export const useBookStore = defineStore('book', () => {
   const borrowRecords = ref([]);
   const violations = ref([]);
 
-  // 加载所有书籍
+  // 加载所有书籍（强制ID为数字类型）
   const loadBooks = async () => {
     try {
       const data = await request.get('/books');
-      books.value = data || []; // 兜底空数组
+      // 核心修复：强制所有书籍ID转为数字，避免类型不匹配
+      books.value = (data || []).map(book => ({
+        ...book,
+        id: Number(book.id), // 强制转数字
+        stock: Number(book.stock),
+        borrowCount: Number(book.borrowCount)
+      }));
+      console.log("【书籍列表】加载完成（ID已转数字）：", books.value);
       return { success: true };
     } catch (error) {
       console.error('加载书籍失败:', error);
@@ -23,14 +30,23 @@ export const useBookStore = defineStore('book', () => {
     }
   };
 
-  // 加载指定用户的借阅记录
+  // 加载指定用户的借阅记录（强制bookId为数字）
   const loadBorrowRecords = async (userId) => {
     if (!userId) {
       return { success: false, message: '用户ID不能为空' };
     }
     try {
       const data = await request.get(`/borrows/user/${userId}`);
-      borrowRecords.value = data || [];
+      // 核心修复：强制借阅记录的bookId、userId、id转为数字
+      borrowRecords.value = (data || []).map(record => ({
+        ...record,
+        id: Number(record.id),
+        bookId: Number(record.bookId), // 关键：bookId转数字
+        userId: Number(record.userId),
+        returned: !!record.returned, // 强制布尔值
+        isReturned: !!record.returned // 兼容字段
+      }));
+      console.log("【借阅记录】加载完成（ID已转数字）：", borrowRecords.value);
       return { success: true };
     } catch (error) {
       console.error('加载借阅记录失败:', error);
@@ -45,7 +61,14 @@ export const useBookStore = defineStore('book', () => {
   const loadAllBorrowRecords = async () => {
     try {
       const data = await request.get('/borrows');
-      borrowRecords.value = data || [];
+      borrowRecords.value = (data || []).map(record => ({
+        ...record,
+        id: Number(record.id),
+        bookId: Number(record.bookId),
+        userId: Number(record.userId),
+        returned: !!record.returned,
+        isReturned: !!record.returned
+      }));
       return { success: true };
     } catch (error) {
       console.error('加载所有借阅记录失败:', error);
@@ -74,48 +97,63 @@ export const useBookStore = defineStore('book', () => {
     }
   };
 
-  // 计算属性：带逾期状态+书籍信息的借阅记录
+  // 计算属性：带逾期状态+书籍信息的借阅记录（终极修复）
   const getBorrowRecordsWithOverdue = computed(() => {
     return borrowRecords.value.map(record => {
-      // 已归还的记录直接返回
-      if (record.returned) {
+      // 第一步：强制bookId为数字（双重保险）
+      const recordBookId = Number(record.bookId);
+      // 第二步：精准匹配书籍（ID类型一致）
+      const book = books.value.find(book => Number(book.id) === recordBookId) || {};
+      
+      console.log(`【关联书籍】recordId=${record.id}，recordBookId=${recordBookId}，匹配到书籍：`, book);
+
+      // 第三步：判断是否归还（兼容字段）
+      const isReturned = !!record.returned || !!record.isReturned;
+
+      // 已归还记录
+      if (isReturned) {
         return {
           ...record,
           overdue: false,
           overdueDays: 0,
-          bookName: '未知书籍',
-          bookAuthor: '未知作者'
+          bookName: book.name || '未知书籍',
+          bookAuthor: book.author || '未知作者',
+          isReturned: true,
+          returned: true,
+          remainingDays: 0,
+          borrowTime: record.borrowTime ? new Date(record.borrowTime).toLocaleDateString() : '未知时间'
         };
       }
 
-      // 计算逾期天数
-      const borrowDate = new Date(record.borrowTime);
+      // 未归还记录：计算逾期和剩余天数
+      const borrowDate = record.borrowTime ? new Date(record.borrowTime) : new Date();
       const nowDate = new Date();
       const diffTime = nowDate - borrowDate;
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
       const overdue = diffDays > 7;
       const overdueDays = overdue ? diffDays - 7 : 0;
-
-      // 关联书籍信息
-      const book = books.value.find(book => book.id === record.bookId) || {};
+      const remainingDays = Math.max(0, 7 - diffDays); // 确保剩余天数不为负
 
       return {
         ...record,
         overdue,
         overdueDays,
+        remainingDays,
         bookName: book.name || '未知书籍',
         bookAuthor: book.author || '未知作者',
-        // 兼容后端字段（isReturned ↔ returned）
-        isReturned: record.returned
+        isReturned: false,
+        returned: false,
+        borrowTime: record.borrowTime ? new Date(record.borrowTime).toLocaleDateString() : '未知时间'
       };
     });
   });
 
-  // 补充：获取当前用户未归还的借阅记录（修复my-borrow调用）
+  // 补充：获取当前用户未归还的借阅记录
   const getCurrentUserBorrows = (userId) => {
     if (!userId) return [];
+    const userIdNum = Number(userId);
     return getBorrowRecordsWithOverdue.value.filter(
-      record => !record.returned && record.userId === userId
+      record => !record.isReturned && Number(record.userId) === userIdNum
     );
   };
 
@@ -123,7 +161,12 @@ export const useBookStore = defineStore('book', () => {
   const addBook = async (newBook) => {
     try {
       const data = await request.post('/books', newBook);
-      books.value.push(data);
+      books.value.push({
+        ...data,
+        id: Number(data.id),
+        stock: Number(data.stock),
+        borrowCount: Number(data.borrowCount || 0)
+      });
       return { success: true, message: '书籍添加成功！' };
     } catch (error) {
       return {
@@ -137,9 +180,15 @@ export const useBookStore = defineStore('book', () => {
   const updateBook = async (book) => {
     try {
       const data = await request.put('/books', book);
-      const index = books.value.findIndex(b => b.id === book.id);
+      const bookIdNum = Number(book.id);
+      const index = books.value.findIndex(b => Number(b.id) === bookIdNum);
       if (index !== -1) {
-        books.value[index] = data;
+        books.value[index] = {
+          ...data,
+          id: Number(data.id),
+          stock: Number(data.stock),
+          borrowCount: Number(data.borrowCount)
+        };
       }
       return { success: true, message: '书籍更新成功！' };
     } catch (error) {
@@ -153,8 +202,9 @@ export const useBookStore = defineStore('book', () => {
   // 删除书籍（管理员）
   const deleteBook = async (bookId) => {
     try {
-      await request.delete(`/books/${bookId}`);
-      books.value = books.value.filter(book => book.id !== bookId);
+      const bookIdNum = Number(bookId);
+      await request.delete(`/books/${bookIdNum}`);
+      books.value = books.value.filter(book => Number(book.id) !== bookIdNum);
       return { success: true, message: '书籍删除成功！' };
     } catch (error) {
       return {
@@ -164,31 +214,30 @@ export const useBookStore = defineStore('book', () => {
     }
   };
 
-  // 借阅书籍（核心修复：参数传递 + 错误处理）
+  // 借阅书籍
   const borrowBook = async (userId, bookId) => {
-    // 前置校验
-    if (!userId || !bookId) {
+    const userIdNum = Number(userId);
+    const bookIdNum = Number(bookId);
+    
+    if (!userIdNum || !bookIdNum) {
       return { success: false, message: '用户ID和书籍ID不能为空' };
     }
 
-    // 检查书籍库存
-    const targetBook = books.value.find(b => b.id === bookId);
+    const targetBook = books.value.find(b => Number(b.id) === bookIdNum);
     if (!targetBook) {
       return { success: false, message: '书籍不存在' };
     }
-    if (targetBook.stock <= 0) {
+    if (Number(targetBook.stock) <= 0) {
       return { success: false, message: '书籍库存不足，无法借阅' };
     }
 
     try {
-      // 优化：POST请求body传null（后端接收参数是@RequestParam）
       const data = await request.post('/borrows', null, {
-        params: { userId, bookId }
+        params: { userId: userIdNum, bookId: bookIdNum }
       });
 
-      // 借阅成功后刷新数据
       if (data.success) {
-        await loadBorrowRecords(userId);
+        await loadBorrowRecords(userIdNum);
         await loadBooks();
       }
       return {
@@ -205,17 +254,22 @@ export const useBookStore = defineStore('book', () => {
     }
   };
 
-  // 归还书籍
+  // 归还书籍（确保刷新顺序 + 类型统一）
   const returnBook = async (recordId, userId) => {
-    if (!recordId || !userId) {
+    const recordIdNum = Number(recordId);
+    const userIdNum = Number(userId);
+    
+    if (!recordIdNum || !userIdNum) {
       return { success: false, message: '记录ID和用户ID不能为空' };
     }
+    
     try {
-      const data = await request.put(`/borrows/return/${recordId}`);
+      const data = await request.put(`/borrows/return/${recordIdNum}`);
       if (data.success) {
-        await loadBorrowRecords(userId);
-        await loadBooks();
-        await loadViolations(userId);
+        // 先刷新书籍，再刷新借阅记录（确保数据最新）
+        await loadBooks(); 
+        await loadBorrowRecords(userIdNum); 
+        await loadViolations(userIdNum);
       }
       return {
         success: data.success,
@@ -230,17 +284,21 @@ export const useBookStore = defineStore('book', () => {
     }
   };
 
-  // 新增：续借书籍方法
+  // 续借书籍方法
   const renewBook = async (recordId, userId) => {
-    if (!recordId || !userId) {
+    const recordIdNum = Number(recordId);
+    const userIdNum = Number(userId);
+    
+    if (!recordIdNum || !userIdNum) {
       return { success: false, message: '记录ID和用户ID不能为空' };
     }
+    
     try {
-      const data = await request.put(`/borrows/renew/${recordId}`, null, {
-        params: { userId }
+      const data = await request.put(`/borrows/renew/${recordIdNum}`, null, {
+        params: { userId: userIdNum }
       });
       if (data.success) {
-        await loadBorrowRecords(userId);
+        await loadBorrowRecords(userIdNum);
       }
       return {
         success: data.success,
@@ -255,20 +313,18 @@ export const useBookStore = defineStore('book', () => {
     }
   };
 
-  // 补充：获取用户所有借阅记录（修复BorrowHistoryPage调用的方法）
+  // 获取用户所有借阅记录（类型统一）
   const getAllUserBorrows = (userId) => {
     if (!userId) return [];
-    // 先加载再返回（确保数据最新）
-    return getBorrowRecordsWithOverdue.value.filter(record => record.userId === userId);
+    const userIdNum = Number(userId);
+    return getBorrowRecordsWithOverdue.value.filter(record => Number(record.userId) === userIdNum);
   };
 
   return {
-    // 数据
     books,
     borrowRecords,
     violations,
     getBorrowRecordsWithOverdue,
-    // 方法
     loadBooks,
     loadBorrowRecords,
     loadAllBorrowRecords,
@@ -278,8 +334,8 @@ export const useBookStore = defineStore('book', () => {
     deleteBook,
     borrowBook,
     returnBook,
-    renewBook, // 导出续借方法
+    renewBook,
     getAllUserBorrows,
-    getCurrentUserBorrows // 导出未归还记录方法
+    getCurrentUserBorrows
   };
 });

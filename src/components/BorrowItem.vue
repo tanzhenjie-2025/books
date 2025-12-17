@@ -4,22 +4,37 @@
       <p class="book-name"><strong>书名：</strong>{{ borrow.bookName }}</p>
       <p class="book-author"><strong>作者：</strong>{{ borrow.bookAuthor }}</p>
       <p class="borrow-time"><strong>借阅时间：</strong>{{ borrow.borrowTime }}</p>
-      <p class="overdue" v-if="borrow.overdue">
+
+      <!-- 已归还状态 -->
+      <p class="returned" v-if="borrow.isReturned">
+        <strong style="color: #909399">状态：</strong>已归还
+      </p>
+
+      <!-- 未归还 - 已逾期 -->
+      <p class="overdue" v-else-if="borrow.overdue">
         <strong style="color: #f56c6c">状态：</strong>已超时{{ borrow.overdueDays }}天
       </p>
+
+      <!-- 未归还 - 未逾期 -->
       <p class="not-overdue" v-else>
-        <strong style="color: #67c23a">状态：</strong>未超时（剩余{{ calcRemainingDays }}天）
+        <strong style="color: #67c23a">状态：</strong>未超时（剩余{{ borrow.remainingDays }}天）
       </p>
     </div>
     <div class="action-buttons">
+      <!-- 仅未归还且满足条件时显示续借按钮 -->
       <button
         class="btn btn-warning renew-btn"
         @click="handleRenew"
-        :disabled="!canRenew"
+        :disabled="borrow.isReturned || !canRenew"
       >
         续借
       </button>
-      <button class="btn btn-success return-btn" @click="handleReturn">
+      <!-- 仅未归还时显示归还按钮 -->
+      <button
+        class="btn btn-success return-btn"
+        @click="handleReturn"
+        :disabled="borrow.isReturned"
+      >
         归还
       </button>
     </div>
@@ -39,19 +54,10 @@ const props = defineProps({
 
 const emit = defineEmits(['return', 'renew']);
 
-// 计算剩余天数
-const calcRemainingDays = computed(() => {
-  const borrowDate = new Date(props.borrow.borrowTime);
-  const nowDate = new Date();
-  const diffTime = nowDate - borrowDate;
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  return 7 - diffDays;
-});
-
-// 是否可续借（剩余<3天+未超时）
+// 是否可续借（未归还+未逾期+剩余<3天）
 const canRenew = computed(() => {
-  if (props.borrow.overdue) return false;
-  return calcRemainingDays.value < 3;
+  if (props.borrow.isReturned || props.borrow.overdue) return false;
+  return Number(props.borrow.remainingDays) < 3;
 });
 
 const handleReturn = () => {
@@ -85,7 +91,8 @@ const handleRenew = () => {
 .book-author,
 .borrow-time,
 .overdue,
-.not-overdue {
+.not-overdue,
+.returned {
   margin: 0;
   color: #333;
   font-size: 14px;
@@ -97,6 +104,10 @@ const handleRenew = () => {
 
 .not-overdue {
   color: #67c23a;
+}
+
+.returned {
+  color: #909399;
 }
 
 .action-buttons {
@@ -115,6 +126,11 @@ const handleRenew = () => {
 
 .return-btn:hover {
   background: #85ce61;
+}
+
+.return-btn:disabled {
+  background: #e1e6eb;
+  cursor: not-allowed;
 }
 
 .renew-btn {

@@ -38,69 +38,60 @@ import { useBookStore } from '@/store/bookStore';
 import { useUserStore } from '@/store/userStore';
 import BorrowItem from '@/components/BorrowItem.vue';
 
-// 初始化Store
 const bookStore = useBookStore();
 const userStore = useUserStore();
 
-// 响应式数据
 const allRecords = ref([]);
 const statusFilter = ref('all');
 const filteredRecords = ref([]);
 
-// 初始化借阅记录（修复核心bug）
+// 初始化借阅记录
 const initRecords = async () => {
-  // 未登录则清空
   if (!userStore.currentUser) {
     allRecords.value = [];
     filteredRecords.value = [];
     return;
   }
 
-  // 先加载最新的借阅记录
+  // 先确保书籍列表已加载（核心修正）
+  await bookStore.loadBooks();
+  // 再加载借阅记录
   const loadResult = await bookStore.loadBorrowRecords(userStore.currentUser.id);
   if (!loadResult.success) {
     alert(loadResult.message);
     return;
   }
 
-  // 获取用户所有借阅记录（调用修复后的方法）
   allRecords.value = bookStore.getAllUserBorrows(userStore.currentUser.id);
-  // 初始化筛选
   filterRecords();
 };
 
-// 筛选记录
+// 筛选记录（修正：用isReturned判断）
 const filterRecords = () => {
   if (statusFilter.value === 'all') {
     filteredRecords.value = [...allRecords.value];
   } else if (statusFilter.value === 'returned') {
-    // 匹配后端字段：returned → 前端显示用isReturned兼容
-    filteredRecords.value = allRecords.value.filter(r => r.returned || r.isReturned);
+    filteredRecords.value = allRecords.value.filter(r => r.isReturned);
   } else {
-    filteredRecords.value = allRecords.value.filter(r => !(r.returned || r.isReturned));
+    filteredRecords.value = allRecords.value.filter(r => !r.isReturned);
   }
 };
 
-// 处理归还（修复异步调用）
+// 处理归还（简化逻辑，依赖store内部的刷新顺序）
 const handleReturn = async (borrowId) => {
   if (!userStore.currentUser) {
     alert('请先登录');
     return;
   }
-  // 调用归还方法（传递recordId和userId）
   const returnResult = await bookStore.returnBook(borrowId, userStore.currentUser.id);
   alert(returnResult.message);
-  // 归还成功后刷新记录
   if (returnResult.success) {
-    await initRecords();
+    await initRecords(); // 重新初始化记录（已包含先加载书籍的逻辑）
   }
 };
 
 // 页面挂载时初始化
 onMounted(async () => {
-  // 先加载书籍（关联书籍名称）
-  await bookStore.loadBooks();
-  // 再加载借阅记录
   await initRecords();
 });
 </script>
