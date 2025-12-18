@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useUserStore } from '@/store/userStore';
 
-// 导入页面组件（补充审核评价组件）
+// 导入页面组件
 import Login from '@/views/Login.vue';
 import Home from '@/views/Home.vue';
 import MyBorrow from '@/views/MyBorrow.vue';
@@ -13,7 +13,7 @@ import UserCenter from '@/views/UserCenter.vue';
 import Admin from '@/views/Admin.vue';
 import AddBook from '@/views/AddBook.vue';
 import BookComments from '@/views/BookComments.vue';
-// 新增：导入审核评价组件
+// 导入评论审核组件
 import AdminCommentAudit from '@/views/AdminCommentAudit.vue';
 
 // 路由规则
@@ -46,12 +46,12 @@ const routes = [
     component: BookComments,
     meta: { requiresAuth: true }
   },
-  // 新增：审核评价路由
+  // 评论审核路由（核心配置）
   {
-    path: '/comment-audit',
+    path: '/admin/comment-audit',
     name: 'AdminCommentAudit',
     component: AdminCommentAudit,
-    meta: { requiresAuth: true, requiresAdmin: true } // 仅管理员可访问
+    meta: { requiresAuth: true, requiresAdmin: true }
   },
   {
     path: '/my-borrow',

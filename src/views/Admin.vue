@@ -6,6 +6,8 @@
         <button @click="activeTab = 'books'" :class="{ active: activeTab === 'books' }">书籍管理</button>
         <button @click="activeTab = 'users'" :class="{ active: activeTab === 'users' }">用户管理</button>
         <button @click="activeTab = 'borrows'" :class="{ active: activeTab === 'borrows' }">借阅管理</button>
+        <!-- 新增：评论审核按钮 -->
+        <button @click="router.push('/admin/comment-audit')" class="comment-audit-btn">评论审核</button>
         <button @click="router.push('/home')" class="back-btn">返回首页</button>
       </div>
     </div>
@@ -350,6 +352,17 @@ const increaseViolation = async (userId) => {
   background-color: #409eff;
   color: white;
   border-color: #409eff;
+}
+
+/* 新增：评论审核按钮样式 */
+.comment-audit-btn {
+  background-color: #f5a623 !important;
+  color: white !important;
+  border-color: #f5a623 !important;
+}
+
+.comment-audit-btn:hover {
+  background-color: #ff9800 !important;
 }
 
 .back-btn {
