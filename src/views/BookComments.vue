@@ -92,10 +92,7 @@ const setScore = (star) => {
 
 // 提交评价
 const submitComment = async () => {
-  if (!userStore.currentUser) {
-    alert('请先登录！');
-    return;
-  }
+
 
   if (score.value === 0) {
     alert('请给出评分！');

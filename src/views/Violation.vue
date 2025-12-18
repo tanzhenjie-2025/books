@@ -68,12 +68,7 @@ const formatDate = (dateStr) => {
  * 修复：先加载完整数据，再筛选违规记录
  */
 const getViolationRecords = async () => {
-  // 未登录时跳登录页（双重保障，配合路由守卫）
-  if (!userStore.currentUser) {
-    violationRecords.value = [];
-    router.push('/login');
-    return;
-  }
+
 
   try {
     // 1. 先加载书籍列表（确保能关联书籍名称）

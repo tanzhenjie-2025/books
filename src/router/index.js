@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useUserStore } from '@/store/userStore';
 
-// 导入页面组件（补充BookStats组件）
+// 导入所有页面组件
 import Login from '@/views/Login.vue';
 import Home from '@/views/Home.vue';
 import MyBorrow from '@/views/MyBorrow.vue';
@@ -13,8 +13,7 @@ import UserCenter from '@/views/UserCenter.vue';
 import Admin from '@/views/Admin.vue';
 import AddBook from '@/views/AddBook.vue';
 import BookComments from '@/views/BookComments.vue';
-// 新增：导入BookStats组件
-import BookStats from '@/views/BookStats.vue';
+import BookStats from '@/views/BookStats.vue'; // 借阅统计组件
 
 // 路由规则
 const routes = [
@@ -88,13 +87,14 @@ const routes = [
     component: UserManage,
     meta: { requiresAuth: true, requiresAdmin: true }
   },
-  // 新增：借阅统计路由
+  // 借阅统计路由（管理员专属）
   {
     path: '/book-stats',
     name: 'BookStats',
     component: BookStats,
-    meta: { requiresAuth: true, requiresAdmin: true } // 需要管理员权限
+    meta: { requiresAuth: true, requiresAdmin: true }
   },
+  // 404路由
   {
     path: '/:pathMatch(.*)*',
     redirect: '/home'
@@ -107,11 +107,12 @@ const router = createRouter({
   routes
 });
 
-// 路由守卫
+// 全局路由守卫
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore();
   const isLoggedIn = !!userStore.currentUser;
 
+  // 无需登录的页面
   if (!to.meta.requiresAuth) {
     if (to.name === 'Login' && isLoggedIn) {
       next('/home');
@@ -121,16 +122,19 @@ router.beforeEach((to, from, next) => {
     return;
   }
 
+  // 需要登录但未登录
   if (!isLoggedIn) {
     next('/login');
+    alert('请先登录！');
     return;
   }
 
+  // 需要管理员权限验证
   if (to.meta.requiresAdmin) {
-    const isAdmin = userStore.currentUser?.role === 'ROLE_ADMIN';
+    const isAdmin = userStore.currentUser?.role === 'ROLE_ADMIN'; // 匹配数据库角色字段
     if (!isAdmin) {
       next('/home');
-      alert('无管理员权限！');
+      alert('无管理员权限，无法访问该页面！');
       return;
     }
   }

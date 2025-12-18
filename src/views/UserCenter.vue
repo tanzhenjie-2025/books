@@ -101,7 +101,8 @@ onMounted(async () => {
 const handleReturn = async (recordId) => {
   if (!confirm('确认归还该书籍吗？')) return;
 
-  const result = await bookStore.returnBook(recordId, userId);
+// 即使未登录也尝试调用接口（实际业务中可能需要调整参数）
+  const result = await bookStore.returnBook(recordId, userId || '');
   if (result.success) {
     alert(result.message);
   } else {

@@ -49,10 +49,7 @@ const initUserBorrows = async () => {
 
 // 归还书籍（修复：传递userId）
 const handleReturn = async (borrowId) => {
-  if (!userStore.currentUser) {
-    alert('请先登录！');
-    return;
-  }
+
   const returnResult = await bookStore.returnBook(borrowId, userStore.currentUser.id);
   alert(returnResult.message);
   // 刷新数据

@@ -96,11 +96,23 @@ const handleReturn = async (borrowId) => {
   const borrowIdNum = Number(borrowId);
   const userIdNum = Number(userStore.currentUser.id);
 
-  const returnResult = await bookStore.returnBook(borrowIdNum, userIdNum);
-  alert(returnResult.message);
+  try {
+    const returnResult = await bookStore.returnBook(borrowIdNum, userIdNum);
+    alert(returnResult.message);
 
-  if (returnResult.success) {
-    await initRecords();
+    // 如果是认证错误，跳转到登录页
+    if (returnResult.isAuthError) {
+      userStore.logout(); // 清除无效的用户状态
+      router.push('/login');
+      return;
+    }
+
+    if (returnResult.success) {
+      await initRecords();
+    }
+  } catch (error) {
+    console.error('处理归还失败:', error);
+    alert('操作失败，请稍后重试');
   }
 };
 

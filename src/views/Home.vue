@@ -5,7 +5,7 @@
       <div class="user-info">
         <span>欢迎：{{ userStore.currentUser.username }}</span>
         <button @click="handleLogout" class="logout-btn">退出登录</button>
-        <button @click="router.push('/user')" class="user-btn">个人中心</button>
+<!--        <button @click="router.push('/user')" class="user-btn">个人中心</button>-->
         <button v-if="userStore.currentUser.role === 'ROLE_ADMIN'"
                 @click="router.push('/admin')" class="admin-btn">
           管理员面板
@@ -24,11 +24,14 @@
           <p>库存：{{ book.stock }}</p>
           <p>借阅次数：{{ book.borrowCount }}</p>
           <p>评分：{{ book.avgScore || 0 }} ({{ book.commentCount || 0 }}条评价)</p>
+          <!-- 关键修改：借阅按钮禁用逻辑+文字适配违规次数 -->
           <button
             @click="handleBorrow(book.id)"
-            :disabled="book.stock <= 0"
+            :disabled="book.stock <= 0 || userStore.currentUser?.violationCount >= 3"
             class="borrow-btn">
-            {{ book.stock <= 0 ? '库存不足' : '借阅' }}
+            {{ userStore.currentUser?.violationCount >= 3
+              ? '违规次数过多'
+              : (book.stock <= 0 ? '库存不足' : '借阅') }}
           </button>
           <button
             @click="handleComment(book.id)"
@@ -51,10 +54,16 @@ const router = useRouter();
 const userStore = useUserStore();
 const bookStore = useBookStore();
 
-// 处理借阅
+// 处理借阅（关键修改：加入违规次数检查）
 const handleBorrow = async (bookId) => {
   if (!userStore.currentUser) {
     alert('请先登录！');
+    return;
+  }
+
+  // 关键新增：前置检查违规次数
+  if (userStore.currentUser.violationCount >= 3) {
+    alert('您的违规次数已达3次，暂不能借阅书籍！');
     return;
   }
 
