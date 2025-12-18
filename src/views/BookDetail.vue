@@ -10,7 +10,7 @@
         <p><strong>借阅次数：</strong>{{ book.borrowCount }} 次</p>
         <p><strong>简介：</strong>{{ book.description }}</p>
       </div>
-      <!-- 修复：使用统一的按钮状态判断 -->
+      <!-- 统一的按钮状态判断 -->
       <button
         class="btn btn-primary borrow-btn"
         @click="handleBorrow"
@@ -45,26 +45,43 @@ const currentUserEnabled = computed(() => {
 
 // 计算属性：判断是否是管理员
 const isAdmin = computed(() => {
-  return userStore.currentUser?.role === 'ROLE_ADMIN';
+  const role = userStore.currentUser?.role || '';
+  console.log('[详情页] 用户角色：', role);
+  return role === 'ROLE_ADMIN';
 });
 
-// 计算属性：借阅按钮禁用状态
+// 计算属性：借阅按钮禁用状态（强化类型转换 + 日志）
 const borrowBtnDisabled = computed(() => {
+  const violationCount = Number(userStore.currentUser?.violationCount || 0);
+  const stock = Number(book.value?.stock || 0);
+  // 调试日志
+  console.log('[详情页] 按钮禁用校验：', {
+    hasBook: !!book.value,
+    hasUser: !!userStore.currentUser,
+    isAdmin: isAdmin.value,
+    userEnabled: currentUserEnabled.value,
+    violationCount: violationCount,
+    stock: stock,
+    violationOverLimit: violationCount >= 3
+  });
+
   if (!book.value) return true;
   if (!userStore.currentUser) return true;
-  if (isAdmin.value) return book.value.stock <= 0;
-  if (!currentUserEnabled.value) return true;
-  if (userStore.currentUser.violationCount >= 3) return true;
-  return book.value.stock <= 0;
+  if (isAdmin.value) return stock <= 0; // 管理员仅校验库存
+  if (!currentUserEnabled.value) return true; // 账号禁用
+  if (violationCount >= 3) return true; // 违规≥3次（核心拦截）
+  return stock <= 0; // 库存不足
 });
 
-// 计算属性：借阅按钮显示文字
+// 计算属性：借阅按钮显示文字（强化类型转换）
 const borrowBtnText = computed(() => {
   if (!userStore.currentUser) return '请先登录';
-  if (isAdmin.value) return book.value?.stock > 0 ? '立即借阅' : '库存不足';
+  if (isAdmin.value) return Number(book.value?.stock || 0) > 0 ? '立即借阅' : '库存不足';
+
+  const violationCount = Number(userStore.currentUser.violationCount || 0);
+  if (violationCount >= 3) return '违规次数过多';
   if (!currentUserEnabled.value) return '账号已被禁用';
-  if (userStore.currentUser.violationCount >= 3) return '违规次数过多';
-  return book.value?.stock > 0 ? '立即借阅' : '库存不足';
+  return Number(book.value?.stock || 0) > 0 ? '立即借阅' : '库存不足';
 });
 
 const initBook = () => {
@@ -72,7 +89,7 @@ const initBook = () => {
   book.value = bookStore.books.find(b => b.id === bookId) || null;
 };
 
-// 处理借阅
+// 处理借阅（双重校验 + 强化类型转换）
 const handleBorrow = async () => {
   if (!userStore.currentUser) {
     alert('请先登录！');
@@ -90,14 +107,14 @@ const handleBorrow = async () => {
     return;
   }
 
-  // 普通用户检查
-  if (!currentUserEnabled.value) {
-    alert('您的账号已被禁用，无法借阅书籍！');
+  // 普通用户前置校验（防止绕过按钮禁用）
+  const violationCount = Number(userStore.currentUser.violationCount || 0);
+  if (violationCount >= 3) {
+    alert(`您的违规次数已达${violationCount}次，暂不能借阅书籍！`);
     return;
   }
-
-  if (userStore.currentUser.violationCount >= 3) {
-    alert('您的违规次数已达3次，暂不能借阅书籍！');
+  if (!currentUserEnabled.value) {
+    alert('您的账号已被禁用，无法借阅书籍！');
     return;
   }
 
@@ -111,7 +128,11 @@ const handleBorrow = async () => {
   }
 };
 
-onMounted(initBook);
+// ========== 核心修复：先加载用户最新数据，再初始化书籍 ==========
+onMounted(async () => {
+  await userStore.loadUserList(); // 强制刷新用户数据
+  initBook();
+});
 </script>
 
 <style scoped>

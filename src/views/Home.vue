@@ -63,18 +63,23 @@ const isAdmin = computed(() => {
   return userStore.currentUser?.role === 'ROLE_ADMIN';
 });
 
+// 计算属性：当前用户违规次数（强制转数字，默认0）
+const userViolationCount = computed(() => {
+  return Number(userStore.currentUser?.violationCount || 0);
+});
+
 // 方法：获取借阅按钮禁用状态
 const getBorrowBtnDisabledStatus = (book) => {
   // 未登录
   if (!userStore.currentUser) return true;
   // 库存不足
-  if (book.stock <= 0) return true;
+  if (Number(book.stock) <= 0) return true;
   // 管理员不受限制
   if (isAdmin.value) return false;
-  // 账号明确被禁用（修复：判断逻辑修正）
+  // 账号明确被禁用
   if (!currentUserEnabled.value) return true;
   // 违规次数≥3次
-  if (userStore.currentUser.violationCount >= 3) return true;
+  if (userViolationCount.value >= 3) return true;
   // 其他情况可借阅
   return false;
 };
@@ -82,46 +87,55 @@ const getBorrowBtnDisabledStatus = (book) => {
 // 方法：获取借阅按钮显示文字
 const getBorrowBtnText = (book) => {
   if (!userStore.currentUser) return '请先登录';
-  if (isAdmin.value) return book.stock > 0 ? '借阅' : '库存不足';
+  if (isAdmin.value) return Number(book.stock) > 0 ? '借阅' : '库存不足';
   if (!currentUserEnabled.value) return '账号已禁用';
-  if (userStore.currentUser.violationCount >= 3) return '违规次数过多';
-  return book.stock > 0 ? '借阅' : '库存不足';
+  if (userViolationCount.value >= 3) return '违规次数过多';
+  return Number(book.stock) > 0 ? '借阅' : '库存不足';
 };
 
-// 处理借阅（修复：完善判断逻辑）
+// 处理借阅（修复：添加错误捕获 + 完善类型转换）
 const handleBorrow = async (bookId) => {
   if (!userStore.currentUser) {
     alert('请先登录！');
     return;
   }
 
-  // 管理员不受限制
-  if (isAdmin.value) {
+  try {
+    // 管理员不受限制
+    if (isAdmin.value) {
+      const { success, message } = await bookStore.borrowBook(
+        userStore.currentUser.id,
+        bookId
+      );
+      alert(message);
+      // 刷新书籍列表
+      if (success) await bookStore.loadBooks();
+      return;
+    }
+
+    // 检查账号是否禁用
+    if (!currentUserEnabled.value) {
+      alert('您的账号已被禁用，无法借阅书籍！');
+      return;
+    }
+
+    // 检查违规次数
+    if (userViolationCount.value >= 3) {
+      alert(`您的违规次数已达${userViolationCount.value}次，暂不能借阅书籍！`);
+      return;
+    }
+
     const { success, message } = await bookStore.borrowBook(
       userStore.currentUser.id,
       bookId
     );
     alert(message);
-    return;
+    // 刷新书籍列表
+    if (success) await bookStore.loadBooks();
+  } catch (error) {
+    console.error('借阅操作异常:', error);
+    alert('借阅失败：' + (error.message || '未知错误，请重试'));
   }
-
-  // 检查账号是否禁用（修复：使用处理后的启用状态）
-  if (!currentUserEnabled.value) {
-    alert('您的账号已被禁用，无法借阅书籍！');
-    return;
-  }
-
-  // 检查违规次数
-  if (userStore.currentUser.violationCount >= 3) {
-    alert('您的违规次数已达3次，暂不能借阅书籍！');
-    return;
-  }
-
-  const { success, message } = await bookStore.borrowBook(
-    userStore.currentUser.id,
-    bookId
-  );
-  alert(message);
 };
 
 // 处理评价
@@ -135,8 +149,19 @@ const handleLogout = () => {
   router.push('/login');
 };
 
+// 初始化：先加载用户数据，再加载书籍
 onMounted(async () => {
-  await bookStore.loadBooks();
+  try {
+    if (typeof userStore.loadUserList === 'function') {
+      await userStore.loadUserList();
+    } else if (typeof userStore.loadAllUsers === 'function') {
+      await userStore.loadAllUsers();
+    }
+    await bookStore.loadBooks();
+  } catch (error) {
+    console.error('初始化失败:', error);
+    alert('页面初始化失败，请刷新重试');
+  }
 });
 </script>
 

@@ -17,9 +17,9 @@
         <button
           class="borrow-btn"
           @click="handleBorrow"
-          :disabled="book.stock <= 0"
+          :disabled="borrowBtnDisabled"
         >
-          {{ book.stock <= 0 ? '库存不足' : '借阅' }}
+          {{ borrowBtnText }}
         </button>
         <!-- 新增评论按钮 -->
         <button class="comment-btn" @click="handleComment">
@@ -31,8 +31,9 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from 'vue';
+import { defineProps, defineEmits, computed } from 'vue';
 import { useRouter } from 'vue-router';
+import { useUserStore } from '@/store/userStore';
 
 // 接收props
 const props = defineProps({
@@ -52,9 +53,76 @@ const emit = defineEmits(['borrow']);
 
 // 路由实例
 const router = useRouter();
+// 用户Store
+const userStore = useUserStore();
 
-// 处理借书
-const handleBorrow = () => {
+// 计算属性：当前用户启用状态
+const currentUserEnabled = computed(() => {
+  const enabled = userStore.currentUser?.enabled;
+  if (enabled === undefined || enabled === null) return true;
+  return typeof enabled === 'string' ? enabled === 'true' : !!enabled;
+});
+
+// 计算属性：是否是管理员（强化判断 + 日志）
+const isAdmin = computed(() => {
+  const role = userStore.currentUser?.role || '';
+  console.log('[列表项] 用户角色：', role);
+  return role === 'ROLE_ADMIN';
+});
+
+// 计算属性：借阅按钮禁用状态（强化类型转换 + 日志）
+const borrowBtnDisabled = computed(() => {
+  const violationCount = Number(userStore.currentUser?.violationCount || 0);
+  const stock = Number(props.book.stock || 0);
+  // 调试日志
+  console.log('[列表项] 按钮禁用校验：', {
+    hasUser: !!userStore.currentUser,
+    isAdmin: isAdmin.value,
+    userEnabled: currentUserEnabled.value,
+    violationCount: violationCount,
+    stock: stock,
+    violationOverLimit: violationCount >= 3
+  });
+
+  if (!userStore.currentUser) return true; // 未登录
+  if (isAdmin.value) return stock <= 0; // 管理员仅校验库存
+  if (!currentUserEnabled.value) return true; // 账号禁用
+  if (violationCount >= 3) return true; // 违规≥3次（核心拦截）
+  return stock <= 0; // 库存不足
+});
+
+// 计算属性：借阅按钮显示文字（强化类型转换）
+const borrowBtnText = computed(() => {
+  if (!userStore.currentUser) return '请先登录';
+  if (isAdmin.value) return Number(props.book.stock || 0) > 0 ? '借阅' : '库存不足';
+
+  const violationCount = Number(userStore.currentUser.violationCount || 0);
+  if (violationCount >= 3) return '违规次数过多';
+  if (!currentUserEnabled.value) return '账号已禁用';
+  return Number(props.book.stock || 0) > 0 ? '借阅' : '库存不足';
+});
+
+// 处理借书（前置校验 + 强化类型转换）
+const handleBorrow = async () => {
+  if (!userStore.currentUser) {
+    alert('请先登录！');
+    return;
+  }
+
+  // 普通用户前置校验（防止绕过按钮禁用）
+  if (!isAdmin.value) {
+    const violationCount = Number(userStore.currentUser.violationCount || 0);
+    if (violationCount >= 3) {
+      alert(`您的违规次数已达${violationCount}次，暂不能借阅书籍！`);
+      return;
+    }
+    if (!currentUserEnabled.value) {
+      alert('您的账号已被禁用，无法借阅书籍！');
+      return;
+    }
+  }
+
+  // 触发父组件的借阅事件
   emit('borrow', props.book.id);
 };
 

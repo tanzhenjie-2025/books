@@ -377,7 +377,7 @@ export const useBookStore = defineStore('book', () => {
     return typeof enabled === 'string' ? enabled === 'true' : !!enabled;
   };
 
-  // 借阅书籍（核心修复：完善用户状态判断+管理员豁免）
+  // 借阅书籍（终极修复：兼容方法名 + 错误捕获 + 优先校验违规次数）
   const borrowBook = async (userId, bookId) => {
     const userIdNum = Number(userId);
     const bookIdNum = Number(bookId);
@@ -386,18 +386,41 @@ export const useBookStore = defineStore('book', () => {
       return { success: false, message: '用户ID和书籍ID不能为空' };
     }
 
-    // 获取用户Store
+    // ========== 核心修复：兼容方法名 + 错误捕获 ==========
     const userStore = useUserStore();
+    try {
+      // 刷新用户最新数据（兼容loadUserList/loadAllUsers）
+      if (typeof userStore.loadUserList === 'function') {
+        await userStore.loadUserList();
+      } else if (typeof userStore.loadAllUsers === 'function') {
+        await userStore.loadAllUsers();
+      }
+    } catch (err) {
+      console.warn('刷新用户数据失败（不影响基础校验）:', err.message);
+    }
 
-    // 查找目标用户
+    // 查找目标用户（优先从最新的userList找）
     const targetUser = userStore.userList.find(u => Number(u.id) === userIdNum) || userStore.currentUser;
     if (!targetUser) {
+      console.error('[借阅校验] 用户不存在：', userIdNum);
       return { success: false, message: '用户不存在！' };
     }
 
-    // 管理员豁免所有限制
-    if (targetUser.role === 'ROLE_ADMIN') {
-      // 仅检查书籍库存
+    // ========== 强制类型转换 + 调试日志 ==========
+    const userRole = targetUser.role || '';
+    const userEnabled = getUserEnabledStatus(targetUser);
+    const violationCount = Number(targetUser.violationCount || 0); // 强制转数字，默认0
+    console.log('[借阅校验] 最终用户数据：', {
+      userId: targetUser.id,
+      role: userRole,
+      enabled: userEnabled,
+      violationCount: violationCount,
+      violationCountRaw: targetUser.violationCount
+    });
+
+    // ========== 优先校验违规次数（拦截优先级最高） ==========
+    // 管理员豁免（仅校验库存）
+    if (userRole === 'ROLE_ADMIN') {
       const targetBook = books.value.find(b => Number(b.id) === bookIdNum);
       if (!targetBook) {
         return { success: false, message: '书籍不存在' };
@@ -405,52 +428,27 @@ export const useBookStore = defineStore('book', () => {
       if (Number(targetBook.stock) <= 0) {
         return { success: false, message: '书籍库存不足，无法借阅' };
       }
-
-      // 执行借阅
-      try {
-        const data = await request.post('/borrows', null, {
-          params: { userId: userIdNum, bookId: bookIdNum }
-        });
-        if (data.success) {
-          await loadBorrowRecords(userIdNum);
-          await loadBooks();
-        }
-        return {
-          success: data.success,
-          message: data.message || '借阅成功'
-        };
-      } catch (error) {
-        const errMsg = error.message || `借阅失败：${error.response?.data?.message || '服务器错误'}`;
-        console.error('管理员借阅书籍失败:', errMsg);
-        return {
-          success: false,
-          message: errMsg
-        };
+    } else {
+      // 普通用户：第一步就校验违规次数
+      if (violationCount >= 3) {
+        console.warn('[借阅拦截] 违规次数超限：', violationCount);
+        return { success: false, message: `您的违规次数已达${violationCount}次，暂不能借阅书籍！` };
+      }
+      // 第二步：校验账号启用状态
+      if (!userEnabled) {
+        return { success: false, message: '您的账号已被禁用，无法借阅书籍！' };
+      }
+      // 第三步：校验书籍状态
+      const targetBook = books.value.find(b => Number(b.id) === bookIdNum);
+      if (!targetBook) {
+        return { success: false, message: '书籍不存在' };
+      }
+      if (Number(targetBook.stock) <= 0) {
+        return { success: false, message: '书籍库存不足，无法借阅' };
       }
     }
 
-    // 普通用户检查
-    // 检查账号启用状态（修复：使用处理后的状态）
-    const isEnabled = getUserEnabledStatus(targetUser);
-    if (!isEnabled) {
-      return { success: false, message: '您的账号已被禁用，无法借阅书籍！' };
-    }
-
-    // 检查违规次数
-    const violationCount = Number(targetUser.violationCount || 0);
-    if (violationCount >= 3) {
-      return { success: false, message: '您的违规次数已达3次，暂不能借阅书籍！' };
-    }
-
-    // 检查书籍
-    const targetBook = books.value.find(b => Number(b.id) === bookIdNum);
-    if (!targetBook) {
-      return { success: false, message: '书籍不存在' };
-    }
-    if (Number(targetBook.stock) <= 0) {
-      return { success: false, message: '书籍库存不足，无法借阅' };
-    }
-
+    // 执行借阅
     try {
       const data = await request.post('/borrows', null, {
         params: { userId: userIdNum, bookId: bookIdNum }

@@ -19,11 +19,13 @@ export const useUserStore = defineStore('user', () => {
         throw new Error('登录响应数据不完整');
       }
 
-      // 存储用户信息（包含Token）
+      // 存储用户信息（包含Token），补充违规次数和启用状态的类型转换
       currentUser.value = {
         id: data.id,
         username: data.username,
-        role: data.role || 'ROLE_USER' // 兜底默认角色
+        role: data.role || 'ROLE_USER', // 兜底默认角色
+        violationCount: Number(data.violationCount || 0), // 强制转数字
+        enabled: data.enabled === undefined ? true : (typeof data.enabled === 'string' ? data.enabled === 'true' : !!data.enabled)
       };
       token.value = data.token;
 
@@ -66,13 +68,22 @@ export const useUserStore = defineStore('user', () => {
   const loadAllUsers = async () => {
     try {
       const data = await request.get('/users');
-      userList.value = data || []; // 兜底空数组
+      // 强制转换用户数据类型，避免后续校验出错
+      userList.value = (data || []).map(user => ({
+        ...user,
+        id: Number(user.id),
+        violationCount: Number(user.violationCount || 0),
+        enabled: user.enabled === undefined ? true : (typeof user.enabled === 'string' ? user.enabled === 'true' : !!user.enabled)
+      }));
+      return { success: true };
     } catch (error) {
       console.error('加载用户列表失败:', error);
       return { success: false, message: error.message };
     }
-    return { success: true };
   };
+
+  // 兼容别名：解决bookStore中调用loadUserList的错误
+  const loadUserList = loadAllUsers;
 
   // 更新用户信息
   const updateUser = async (user) => {
@@ -81,11 +92,21 @@ export const useUserStore = defineStore('user', () => {
       // 更新用户列表
       const index = userList.value.findIndex(u => u.id === user.id);
       if (index !== -1) {
-        userList.value[index] = data;
+        userList.value[index] = {
+          ...data,
+          id: Number(data.id),
+          violationCount: Number(data.violationCount || 0),
+          enabled: data.enabled === undefined ? true : (typeof data.enabled === 'string' ? data.enabled === 'true' : !!data.enabled)
+        };
       }
       // 更新当前登录用户信息
       if (currentUser.value && currentUser.value.id === user.id) {
-        currentUser.value = { ...data };
+        currentUser.value = {
+          ...data,
+          id: Number(data.id),
+          violationCount: Number(data.violationCount || 0),
+          enabled: data.enabled === undefined ? true : (typeof data.enabled === 'string' ? data.enabled === 'true' : !!data.enabled)
+        };
         localStorage.setItem('user', JSON.stringify(currentUser.value));
       }
       return { success: true, message: '用户更新成功' };
@@ -105,6 +126,11 @@ export const useUserStore = defineStore('user', () => {
       const index = userList.value.findIndex(u => u.id === userId);
       if (index !== -1) {
         userList.value[index].enabled = enabled;
+      }
+      // 同步更新当前用户状态
+      if (currentUser.value && currentUser.value.id === userId) {
+        currentUser.value.enabled = enabled;
+        localStorage.setItem('user', JSON.stringify(currentUser.value));
       }
       return { success: true, message: enabled ? '用户已启用' : '用户已禁用' };
     } catch (error) {
@@ -126,6 +152,12 @@ export const useUserStore = defineStore('user', () => {
         // 违规次数≥3时自动禁用（和后端逻辑同步）
         if (userList.value[index].violationCount >= 3) {
           userList.value[index].enabled = false;
+          // 同步更新当前用户
+          if (currentUser.value && currentUser.value.id === userId) {
+            currentUser.value.enabled = false;
+            currentUser.value.violationCount = userList.value[index].violationCount;
+            localStorage.setItem('user', JSON.stringify(currentUser.value));
+          }
         }
       }
       return { success: true, message: '违规次数已增加' };
@@ -144,6 +176,11 @@ export const useUserStore = defineStore('user', () => {
       const index = userList.value.findIndex(u => u.id === userId);
       if (index !== -1) {
         userList.value[index].violationCount = 0;
+        // 同步更新当前用户
+        if (currentUser.value && currentUser.value.id === userId) {
+          currentUser.value.violationCount = 0;
+          localStorage.setItem('user', JSON.stringify(currentUser.value));
+        }
       }
       return { success: true, message: '违规次数已重置' };
     } catch (error) {
@@ -162,9 +199,10 @@ export const useUserStore = defineStore('user', () => {
     register,
     logout,
     loadAllUsers,
+    loadUserList, // 关键：添加兼容别名，解决bookStore调用错误
     updateUser,
     toggleUserStatus,
     increaseViolation,
-    resetViolationCount // 新增方法导出
+    resetViolationCount
   };
 });

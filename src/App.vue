@@ -8,7 +8,7 @@
           <router-link to="/home" class="nav-link">首页</router-link>
           <!-- 普通用户导航 -->
           <router-link to="/borrow-history" class="nav-link" v-if="userStore.currentUser">借阅历史</router-link>
-          <router-link to="/violation" class="nav-link" v-if="userStore.currentUser">违规记录</router-link>
+<!--          <router-link to="/violation" class="nav-link" v-if="userStore.currentUser">违规记录</router-link>-->
           <!-- 管理员专属导航 -->
           <router-link to="/book-manage" class="nav-link" v-if="userStore.currentUser?.role === 'ROLE_ADMIN'">书籍添加</router-link>
           <router-link to="/user-manage" class="nav-link" v-if="userStore.currentUser?.role === 'ROLE_ADMIN'">用户管理</router-link>
