@@ -16,11 +16,12 @@ export const isLogin = () => {
 /**
  * 判断是否为管理员
  * @returns {Boolean} true=管理员，false=普通用户
+ * 【修改点】：将 'admin' 修正为 'ROLE_ADMIN'，与其他文件角色命名统一
  */
 export const isAdmin = () => {
   const userStore = useUserStore();
   if (!userStore.currentUser) return false;
-  return userStore.currentUser.role === 'admin';
+  return userStore.currentUser.role === 'ROLE_ADMIN';
 };
 
 /**
