@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useUserStore } from '@/store/userStore';
 
-// 导入页面组件
+// 导入页面组件（补充BookStats组件）
 import Login from '@/views/Login.vue';
 import Home from '@/views/Home.vue';
 import MyBorrow from '@/views/MyBorrow.vue';
@@ -13,89 +13,88 @@ import UserCenter from '@/views/UserCenter.vue';
 import Admin from '@/views/Admin.vue';
 import AddBook from '@/views/AddBook.vue';
 import BookComments from '@/views/BookComments.vue';
-// 新增：导入评论审核页面
-import AdminCommentAudit from '@/views/AdminCommentAudit.vue';
+// 新增：导入BookStats组件
+import BookStats from '@/views/BookStats.vue';
 
 // 路由规则
 const routes = [
   {
     path: '/',
-    redirect: '/home' // 默认跳首页
+    redirect: '/home'
   },
   {
     path: '/login',
     name: 'Login',
     component: Login,
-    meta: { requiresAuth: false } // 无需登录
+    meta: { requiresAuth: false }
   },
   {
     path: '/home',
     name: 'Home',
     component: Home,
-    meta: { requiresAuth: true } // 需要登录
+    meta: { requiresAuth: true }
   },
   {
     path: '/add-book',
     name: 'AddBook',
     component: AddBook,
-    meta: { requiresAuth: true, requiresAdmin: true } // 需要管理员权限
+    meta: { requiresAuth: true, requiresAdmin: true }
   },
   {
     path: '/book-comments/:id',
     name: 'BookComments',
     component: BookComments,
-    meta: { requiresAuth: true } // 需要登录，普通用户即可访问
-  },
-  // 新增：评论审核路由
-  {
-    path: '/admin/comment-audit',
-    name: 'AdminCommentAudit',
-    component: AdminCommentAudit,
-    meta: { requiresAuth: true, requiresAdmin: true } // 需要管理员权限
+    meta: { requiresAuth: true }
   },
   {
     path: '/my-borrow',
     name: 'MyBorrow',
     component: MyBorrow,
-    meta: { requiresAuth: true } // 需要登录
+    meta: { requiresAuth: true }
   },
   {
     path: '/borrow-history',
     name: 'BorrowHistory',
     component: BorrowHistory,
-    meta: { requiresAuth: true } // 需要登录
+    meta: { requiresAuth: true }
   },
   {
     path: '/violation',
     name: 'Violation',
     component: Violation,
-    meta: { requiresAuth: true } // 需要登录
+    meta: { requiresAuth: true }
   },
   {
     path: '/user',
     name: 'UserCenter',
     component: UserCenter,
-    meta: { requiresAuth: true } // 需要登录
+    meta: { requiresAuth: true }
   },
   {
     path: '/admin',
     name: 'Admin',
     component: Admin,
-    meta: { requiresAuth: true, requiresAdmin: true } // 需要登录+管理员权限
+    meta: { requiresAuth: true, requiresAdmin: true }
   },
   {
     path: '/book-manage',
     name: 'BookManage',
     component: BookManage,
-    meta: { requiresAuth: true, requiresAdmin: true } // 需要管理员权限
+    meta: { requiresAuth: true, requiresAdmin: true }
   },
   {
     path: '/user-manage',
     name: 'UserManage',
     component: UserManage,
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  // 新增：借阅统计路由
+  {
+    path: '/book-stats',
+    name: 'BookStats',
+    component: BookStats,
     meta: { requiresAuth: true, requiresAdmin: true } // 需要管理员权限
   },
-  // 404页面
   {
     path: '/:pathMatch(.*)*',
     redirect: '/home'
@@ -108,14 +107,12 @@ const router = createRouter({
   routes
 });
 
-// 路由守卫：验证登录状态和权限
+// 路由守卫
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore();
-  const isLoggedIn = !!userStore.currentUser; // 是否登录
+  const isLoggedIn = !!userStore.currentUser;
 
-  // 无需登录的路由直接放行
   if (!to.meta.requiresAuth) {
-    // 已登录用户访问登录页，跳首页
     if (to.name === 'Login' && isLoggedIn) {
       next('/home');
     } else {
@@ -124,23 +121,20 @@ router.beforeEach((to, from, next) => {
     return;
   }
 
-  // 需要登录的路由
   if (!isLoggedIn) {
-    next('/login'); // 未登录跳登录页
+    next('/login');
     return;
   }
 
-  // 需要管理员权限的路由
   if (to.meta.requiresAdmin) {
     const isAdmin = userStore.currentUser?.role === 'ROLE_ADMIN';
     if (!isAdmin) {
-      next('/home'); // 非管理员跳首页
+      next('/home');
       alert('无管理员权限！');
       return;
     }
   }
 
-  // 所有验证通过
   next();
 });
 
