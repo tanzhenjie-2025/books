@@ -5,7 +5,6 @@
       <div class="user-info">
         <span>欢迎：{{ userStore.currentUser.username }}</span>
         <button @click="handleLogout" class="logout-btn">退出登录</button>
-<!--        <button @click="router.push('/user')" class="user-btn">个人中心</button>-->
         <button v-if="userStore.currentUser.role === 'ROLE_ADMIN'"
                 @click="router.push('/admin')" class="admin-btn">
           管理员面板
@@ -15,7 +14,6 @@
 
     <div class="book-list">
       <h2>图书列表</h2>
-      <!-- 核心修改：给 book-grid 加布局样式，实现多列展示 -->
       <div class="book-grid">
         <div v-for="book in bookStore.books" :key="book.id" class="book-card">
           <h3>{{ book.name }}</h3>
@@ -24,14 +22,12 @@
           <p>库存：{{ book.stock }}</p>
           <p>借阅次数：{{ book.borrowCount }}</p>
           <p>评分：{{ book.avgScore || 0 }} ({{ book.commentCount || 0 }}条评价)</p>
-          <!-- 关键修改：借阅按钮禁用逻辑+文字适配违规次数 -->
+          <!-- 修复：修正enabled判断逻辑 + 管理员豁免 -->
           <button
             @click="handleBorrow(book.id)"
-            :disabled="book.stock <= 0 || userStore.currentUser?.violationCount >= 3"
+            :disabled="getBorrowBtnDisabledStatus(book)"
             class="borrow-btn">
-            {{ userStore.currentUser?.violationCount >= 3
-              ? '违规次数过多'
-              : (book.stock <= 0 ? '库存不足' : '借阅') }}
+            {{ getBorrowBtnText(book) }}
           </button>
           <button
             @click="handleComment(book.id)"
@@ -45,7 +41,7 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
+import { onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/store/userStore';
 import { useBookStore } from '@/store/bookStore';
@@ -54,14 +50,68 @@ const router = useRouter();
 const userStore = useUserStore();
 const bookStore = useBookStore();
 
-// 处理借阅（关键修改：加入违规次数检查）
+// 计算属性：获取当前用户的启用状态（处理类型和默认值）
+const currentUserEnabled = computed(() => {
+  // 不存在则默认启用，处理字符串/布尔值类型
+  const enabled = userStore.currentUser?.enabled;
+  if (enabled === undefined || enabled === null) return true;
+  return typeof enabled === 'string' ? enabled === 'true' : !!enabled;
+});
+
+// 计算属性：判断当前用户是否是管理员
+const isAdmin = computed(() => {
+  return userStore.currentUser?.role === 'ROLE_ADMIN';
+});
+
+// 方法：获取借阅按钮禁用状态
+const getBorrowBtnDisabledStatus = (book) => {
+  // 未登录
+  if (!userStore.currentUser) return true;
+  // 库存不足
+  if (book.stock <= 0) return true;
+  // 管理员不受限制
+  if (isAdmin.value) return false;
+  // 账号明确被禁用（修复：判断逻辑修正）
+  if (!currentUserEnabled.value) return true;
+  // 违规次数≥3次
+  if (userStore.currentUser.violationCount >= 3) return true;
+  // 其他情况可借阅
+  return false;
+};
+
+// 方法：获取借阅按钮显示文字
+const getBorrowBtnText = (book) => {
+  if (!userStore.currentUser) return '请先登录';
+  if (isAdmin.value) return book.stock > 0 ? '借阅' : '库存不足';
+  if (!currentUserEnabled.value) return '账号已禁用';
+  if (userStore.currentUser.violationCount >= 3) return '违规次数过多';
+  return book.stock > 0 ? '借阅' : '库存不足';
+};
+
+// 处理借阅（修复：完善判断逻辑）
 const handleBorrow = async (bookId) => {
   if (!userStore.currentUser) {
     alert('请先登录！');
     return;
   }
 
-  // 关键新增：前置检查违规次数
+  // 管理员不受限制
+  if (isAdmin.value) {
+    const { success, message } = await bookStore.borrowBook(
+      userStore.currentUser.id,
+      bookId
+    );
+    alert(message);
+    return;
+  }
+
+  // 检查账号是否禁用（修复：使用处理后的启用状态）
+  if (!currentUserEnabled.value) {
+    alert('您的账号已被禁用，无法借阅书籍！');
+    return;
+  }
+
+  // 检查违规次数
   if (userStore.currentUser.violationCount >= 3) {
     alert('您的违规次数已达3次，暂不能借阅书籍！');
     return;
@@ -91,7 +141,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* 全局容器样式 */
+/* 样式部分保持不变 */
 .home-container {
   max-width: 1400px;
   margin: 0 auto;
@@ -99,7 +149,6 @@ onMounted(async () => {
   font-family: Arial, sans-serif;
 }
 
-/* 头部样式 */
 .header {
   display: flex;
   justify-content: space-between;
@@ -156,20 +205,17 @@ onMounted(async () => {
   background-color: #52c41a;
 }
 
-/* 图书列表区域 */
 .book-list h2 {
   color: #1f2937;
   margin-bottom: 20px;
 }
 
-/* 核心修改：图书网格布局 - 实现多列展示 */
 .book-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 24px; /* 卡片之间的间距 */
+  gap: 24px;
 }
 
-/* 核心修改：控制单个图书卡片宽度，实现一行多个 */
 .book-card {
   display: flex;
   flex-direction: column;
@@ -179,11 +225,10 @@ onMounted(async () => {
   border-radius: 8px;
   background: #f9fafb;
   box-sizing: border-box;
-  /* 关键：控制宽度，默认一行3列，减去间距 */
   flex: 1 1 calc(33.333% - 24px);
   max-width: calc(33.333% - 24px);
-  min-width: 280px; /* 最小宽度，防止缩得太窄 */
-  height: 100%; /* 确保同列卡片高度一致 */
+  min-width: 280px;
+  height: 100%;
 }
 
 .book-card h3 {
@@ -199,7 +244,6 @@ onMounted(async () => {
   line-height: 1.5;
 }
 
-/* 借阅按钮样式 */
 .borrow-btn {
   padding: 8px 0;
   border: none;
@@ -222,7 +266,6 @@ onMounted(async () => {
   background-color: #3399ff;
 }
 
-/* 评论按钮样式 */
 .comment-btn {
   padding: 8px 0;
   border: none;
@@ -240,7 +283,6 @@ onMounted(async () => {
   background-color: #52c41a;
 }
 
-/* 响应式适配：不同屏幕宽度调整列数 */
 @media (max-width: 1200px) {
   .book-card {
     flex: 1 1 calc(50% - 24px);
