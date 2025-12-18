@@ -10,7 +10,7 @@
           <router-link to="/borrow-history" class="nav-link" v-if="userStore.currentUser">借阅历史</router-link>
           <!-- 管理员专属导航 -->
           <router-link to="/book-manage" class="nav-link" v-if="userStore.currentUser?.role === 'ROLE_ADMIN'">书籍添加</router-link>
-          <router-link to="/user-manage" class="nav-link" v-if="userStore.currentUser?.role === 'ROLE_ADMIN'">用户管理</router-link>
+          <router-link to="/user-manage" class="nav-link" v-if="userStore.currentUser?.role === 'ROLE_ADMIN'">用户添加</router-link>
           <!-- 评论审核入口 -->
           <router-link to="/admin/comment-audit" class="nav-link" v-if="userStore.currentUser?.role === 'ROLE_ADMIN'">评论审核</router-link>
           <!-- 登录/退出 -->

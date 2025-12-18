@@ -7,7 +7,7 @@
     </div>
     <div class="action-buttons">
 <!--      <button class="btn btn-primary edit-btn" @click="handleEdit">编辑</button>-->
-      <button class="btn btn-danger delete-btn" @click="handleDelete">删除</button>
+<!--      <button class="btn btn-danger delete-btn" @click="handleDelete">删除</button>-->
     </div>
   </div>
 </template>
