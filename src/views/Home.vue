@@ -15,6 +15,7 @@
 
     <div class="book-list">
       <h2>图书列表</h2>
+      <!-- 核心修改：给 book-grid 加布局样式，实现多列展示 -->
       <div class="book-grid">
         <div v-for="book in bookStore.books" :key="book.id" class="book-card">
           <h3>{{ book.name }}</h3>
@@ -81,7 +82,85 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* 原有样式保持不变，添加以下样式 */
+/* 全局容器样式 */
+.home-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+}
+
+/* 头部样式 */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 0;
+  border-bottom: 1px solid #e4e7ed;
+  margin-bottom: 30px;
+}
+
+.header h1 {
+  margin: 0;
+  color: #1f2937;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.logout-btn, .user-btn, .admin-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+.logout-btn {
+  background-color: #f56565;
+  color: white;
+}
+
+.logout-btn:hover {
+  background-color: #ef4444;
+}
+
+.user-btn {
+  background-color: #409eff;
+  color: white;
+}
+
+.user-btn:hover {
+  background-color: #3399ff;
+}
+
+.admin-btn {
+  background-color: #67c23a;
+  color: white;
+}
+
+.admin-btn:hover {
+  background-color: #52c41a;
+}
+
+/* 图书列表区域 */
+.book-list h2 {
+  color: #1f2937;
+  margin-bottom: 20px;
+}
+
+/* 核心修改：图书网格布局 - 实现多列展示 */
+.book-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px; /* 卡片之间的间距 */
+}
+
+/* 核心修改：控制单个图书卡片宽度，实现一行多个 */
 .book-card {
   display: flex;
   flex-direction: column;
@@ -89,8 +168,52 @@ onMounted(async () => {
   padding: 16px;
   border: 1px solid #e4e7ed;
   border-radius: 8px;
+  background: #f9fafb;
+  box-sizing: border-box;
+  /* 关键：控制宽度，默认一行3列，减去间距 */
+  flex: 1 1 calc(33.333% - 24px);
+  max-width: calc(33.333% - 24px);
+  min-width: 280px; /* 最小宽度，防止缩得太窄 */
+  height: 100%; /* 确保同列卡片高度一致 */
 }
 
+.book-card h3 {
+  margin: 0 0 8px 0;
+  color: #1f2937;
+  font-size: 18px;
+}
+
+.book-card p {
+  margin: 0;
+  color: #4b5563;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* 借阅按钮样式 */
+.borrow-btn {
+  padding: 8px 0;
+  border: none;
+  border-radius: 6px;
+  background-color: #409eff;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.borrow-btn:disabled {
+  background-color: #d1d5db;
+  cursor: not-allowed;
+}
+
+.borrow-btn:hover:not(:disabled) {
+  background-color: #3399ff;
+}
+
+/* 评论按钮样式 */
 .comment-btn {
   padding: 8px 0;
   border: none;
@@ -106,5 +229,30 @@ onMounted(async () => {
 
 .comment-btn:hover {
   background-color: #52c41a;
+}
+
+/* 响应式适配：不同屏幕宽度调整列数 */
+@media (max-width: 1200px) {
+  .book-card {
+    flex: 1 1 calc(50% - 24px);
+    max-width: calc(50% - 24px);
+  }
+}
+
+@media (max-width: 768px) {
+  .book-card {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+
+  .header {
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
+  }
+
+  .user-info {
+    flex-wrap: wrap;
+  }
 }
 </style>

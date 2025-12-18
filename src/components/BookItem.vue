@@ -65,6 +65,7 @@ const handleComment = () => {
 </script>
 
 <style scoped>
+/* 核心修改：添加高度100% + box-sizing，适配多列布局 */
 .book-item {
   background: #f9fafb;
   border-radius: 8px;
@@ -72,6 +73,8 @@ const handleComment = () => {
   padding: 20px;
   border: 1px solid #e4e7ed;
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  box-sizing: border-box; /* 确保padding不影响宽度 */
+  height: 100%; /* 确保同列卡片高度一致 */
 }
 
 .book-basic-info {
