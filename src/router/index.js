@@ -13,8 +13,9 @@ import UserCenter from '@/views/UserCenter.vue';
 import Admin from '@/views/Admin.vue';
 import AddBook from '@/views/AddBook.vue';
 import BookComments from '@/views/BookComments.vue';
-// 导入评论审核组件
 import AdminCommentAudit from '@/views/AdminCommentAudit.vue';
+// 导入导出图书组件（新增）
+import ExportPage from '@/views/ExportPage.vue';
 
 // 路由规则
 const routes = [
@@ -46,7 +47,6 @@ const routes = [
     component: BookComments,
     meta: { requiresAuth: true }
   },
-  // 评论审核路由（核心配置）
   {
     path: '/admin/comment-audit',
     name: 'AdminCommentAudit',
@@ -95,6 +95,13 @@ const routes = [
     component: UserManage,
     meta: { requiresAuth: true, requiresAdmin: true }
   },
+  // 导出图书路由（修正后）
+  {
+    path: '/export',
+    name: 'Export',
+    component: ExportPage,
+    meta: { requiresAuth: true, requiresAdmin: true }   // 使用 requiresAdmin 匹配守卫逻辑
+  },
   {
     path: '/:pathMatch(.*)*',
     redirect: '/home'
@@ -107,7 +114,7 @@ const router = createRouter({
   routes
 });
 
-// 路由守卫
+// 路由守卫（保持不变）
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore();
   const isLoggedIn = !!userStore.currentUser;

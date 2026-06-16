@@ -13,6 +13,8 @@
           <router-link to="/user-manage" class="nav-link" v-if="userStore.currentUser?.role === 'ROLE_ADMIN'">用户添加</router-link>
           <!-- 评论审核入口 -->
           <router-link to="/admin/comment-audit" class="nav-link" v-if="userStore.currentUser?.role === 'ROLE_ADMIN'">评论审核</router-link>
+          <!-- 新增导出图书链接（仅管理员可见） -->
+          <router-link to="/export" class="nav-link" v-if="userStore.currentUser?.role === 'ROLE_ADMIN'">导出图书</router-link>
           <!-- 登录/退出 -->
           <router-link to="/login" class="nav-link" v-if="!userStore.currentUser">登录</router-link>
           <button class="nav-link logout-btn" @click="handleLogout" v-if="userStore.currentUser">退出登录</button>
