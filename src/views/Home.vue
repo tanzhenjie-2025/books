@@ -29,11 +29,11 @@
             class="borrow-btn">
             {{ getBorrowBtnText(book) }}
           </button>
-<!--          <button-->
-<!--            @click="handleComment(book.id)"-->
-<!--            class="comment-btn">-->
-<!--            评价-->
-<!--          </button>-->
+          <button
+            @click="handleComment(book.id)"
+            class="comment-btn">
+            评价
+          </button>
         </div>
       </div>
     </div>
