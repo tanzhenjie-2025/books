@@ -1,8 +1,11 @@
 <template>
   <div class="book-manage-page">
-    <h2 class="page-title">书籍管理（管理员）</h2>
+    <h2 class="page-title">书籍管理（管理员）</h2><router-link to="/operation-logs" class="nav-link" v-if="userStore.currentUser?.role === 'ROLE_ADMIN'">
+  操作日志
+</router-link>
 
-    <div class="manage-actions">
+    <!-- 仅管理员可见操作按钮 -->
+    <div class="manage-actions" v-if="userStore.currentUser?.role === 'ROLE_ADMIN'">
       <button class="btn-primary" @click="goAddBook">添加新书籍</button>
     </div>
 
@@ -43,7 +46,7 @@
               <span v-if="book.deleted" class="deleted-tag">已下架</span>
               <span v-else class="active-tag">在架</span>
             </td>
-            <td class="action-cell">
+            <td class="action-cell" v-if="userStore.currentUser?.role === 'ROLE_ADMIN'">
               <button class="save-stock-btn" @click="handleUpdateStock(book.id)">保存库存</button>
               <button class="edit-btn" @click="openEditModal(book)">编辑</button>
               <button v-if="!book.deleted" class="off-btn" @click="handleSoftDelete(book.id)">下架</button>
@@ -96,9 +99,11 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useBookStore } from '../store/bookStore';
+import { useUserStore } from '../store/userStore';  // 新增导入
 import { useRouter } from 'vue-router';
 
 const bookStore = useBookStore();
+const userStore = useUserStore();  // 定义 userStore
 const router = useRouter();
 
 // 快捷库存表单
@@ -116,7 +121,6 @@ const editForm = ref({
   description: ''
 });
 
-// 初始化库存表单和加载数据
 onMounted(async () => {
   await bookStore.loadAdminBooks();
   initStockForm();
@@ -146,7 +150,6 @@ const handleUpdateStock = async (bookId) => {
   }
 };
 
-// 下架 / 上架
 const handleSoftDelete = async (id) => {
   if (!confirm('确认下架该书籍？')) return;
   try {
@@ -166,7 +169,6 @@ const handleRestore = async (id) => {
   }
 };
 
-// 全字段编辑
 const openEditModal = (book) => {
   editForm.value = {
     id: book.id,
@@ -189,7 +191,7 @@ const submitEdit = async () => {
     await bookStore.updateBook(editForm.value);
     alert('修改成功');
     closeEditModal();
-    initStockForm(); // 同步库存显示
+    initStockForm();
   } catch (e) {
     alert('修改失败：' + e.message);
   }
@@ -201,252 +203,45 @@ const goAddBook = () => {
 </script>
 
 <style scoped>
-/* ========== 原有基础样式 ========== */
-.book-manage-page {
-  background: #ffffff;
-  padding: 30px;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.page-title {
-  margin-bottom: 25px;
-  color: #1f2937;
-  border-bottom: 2px solid #409eff;
-  padding-bottom: 10px;
-  font-size: 20px;
-}
-
-.manage-actions {
-  margin-bottom: 25px;
-}
-
-.btn-primary {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
-  background-color: #409eff;
-  color: white;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-.btn-primary:hover {
-  background-color: #66b1ff;
-}
-
-/* 表格容器 */
-.book-manage-table {
-  overflow-x: auto;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  background-color: #ffffff;
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.table thead {
-  background-color: #f9fafb;
-}
-
-.table th,
-.table td {
-  padding: 12px 15px;
-  text-align: left;
-  border-bottom: 1px solid #e4e7ed;
-}
-
-.table th {
-  font-size: 14px;
-  color: #1f2937;
-  font-weight: 600;
-}
-
-.table td {
-  font-size: 14px;
-  color: #4b5563;
-}
-
-/* 库存输入框 */
-.stock-input {
-  width: 80px;
-  padding: 6px 8px;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  font-size: 14px;
-  outline: none;
-  text-align: center;
-}
-.stock-input:focus {
-  border-color: #409eff;
-  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
-}
-
-/* 空数据提示 */
-.empty-tip {
-  text-align: center;
-  padding: 50px;
-  font-size: 16px;
-  color: #9ca3af;
-  background-color: #f9fafb;
-  border-radius: 8px;
-  border: 1px dashed #e4e7ed;
-  margin-top: 20px;
-}
-
-/* ========== 软删除 & 操作按钮新样式 ========== */
-.deleted-row {
-  opacity: 0.6;
-  background-color: #f2f2f2;
-}
-.deleted-tag {
-  color: #f56c6c;
-  font-weight: bold;
-}
-.active-tag {
-  color: #67c23a;
-  font-weight: bold;
-}
-
-/* 操作按钮统一风格 */
-.save-stock-btn,
-.edit-btn,
-.off-btn,
-.on-btn {
-  margin-right: 5px;
-  padding: 4px 10px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  color: white;
-  white-space: nowrap;
-}
-.save-stock-btn {
-  background: #67c23a;
-}
-.edit-btn {
-  background: #409eff;
-}
-.off-btn {
-  background: #f56c6c;
-}
-.on-btn {
-  background: #e6a23c;
-}
-
+/* 原有完整样式保持不变 */
+.book-manage-page { background: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); max-width: 1200px; margin: 0 auto; }
+.page-title { margin-bottom: 25px; color: #1f2937; border-bottom: 2px solid #409eff; padding-bottom: 10px; font-size: 20px; }
+.manage-actions { margin-bottom: 25px; }
+.btn-primary { padding: 10px 20px; border: none; border-radius: 6px; background-color: #409eff; color: white; font-size: 14px; cursor: pointer; }
+.btn-primary:hover { background-color: #66b1ff; }
+.book-manage-table { overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; background-color: #ffffff; border: 1px solid #e4e7ed; border-radius: 8px; overflow: hidden; }
+.table thead { background-color: #f9fafb; }
+.table th, .table td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #e4e7ed; font-size: 14px; }
+.table th { color: #1f2937; font-weight: 600; }
+.table td { color: #4b5563; }
+.stock-input { width: 80px; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; outline: none; text-align: center; }
+.stock-input:focus { border-color: #409eff; box-shadow: 0 0 0 2px rgba(64,158,255,0.2); }
+.empty-tip { text-align: center; padding: 50px; font-size: 16px; color: #9ca3af; background-color: #f9fafb; border-radius: 8px; border: 1px dashed #e4e7ed; margin-top: 20px; }
+.deleted-row { opacity: 0.6; background-color: #f2f2f2; }
+.deleted-tag { color: #f56c6c; font-weight: bold; }
+.active-tag { color: #67c23a; font-weight: bold; }
+.save-stock-btn, .edit-btn, .off-btn, .on-btn { margin-right: 5px; padding: 4px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; color: white; white-space: nowrap; }
+.save-stock-btn { background: #67c23a; }
+.edit-btn { background: #409eff; }
+.off-btn { background: #f56c6c; }
+.on-btn { background: #e6a23c; }
 .save-stock-btn:hover { background: #85ce61; }
 .edit-btn:hover { background: #66b1ff; }
 .off-btn:hover { background: #f78989; }
 .on-btn:hover { background: #f0c78e; }
-
-/* 操作单元格内按钮不换行 */
-.action-cell {
-  white-space: nowrap;
-}
-
-/* ========== 模态框样式 ========== */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-.modal {
-  background: white;
-  padding: 24px;
-  border-radius: 8px;
-  width: 480px;
-  max-width: 90%;
-}
-.modal h3 {
-  margin-bottom: 16px;
-  color: #1f2937;
-}
-.form-group {
-  margin-bottom: 12px;
-}
-.form-group label {
-  display: block;
-  font-size: 14px;
-  margin-bottom: 4px;
-  color: #333;
-}
-.form-group input,
-.form-group textarea {
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  box-sizing: border-box;
-}
-.form-group input:focus,
-.form-group textarea:focus {
-  outline: none;
-  border-color: #409eff;
-  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 16px;
-}
-.cancel-btn {
-  padding: 6px 16px;
-  background: #ccc;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.confirm-btn {
-  padding: 6px 16px;
-  background: #409eff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.cancel-btn:hover {
-  background: #b3b3b3;
-}
-.confirm-btn:hover {
-  background: #337ecc;
-}
-
-/* 响应式适配 */
-@media (max-width: 768px) {
-  .book-manage-page {
-    padding: 20px;
-  }
-  .table th,
-  .table td {
-    padding: 10px 8px;
-    font-size: 12px;
-  }
-  .stock-input {
-    width: 60px;
-  }
-  .save-stock-btn,
-  .edit-btn,
-  .off-btn,
-  .on-btn {
-    padding: 4px 6px;
-    font-size: 11px;
-  }
-}
+.action-cell { white-space: nowrap; }
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+.modal { background: white; padding: 24px; border-radius: 8px; width: 480px; max-width: 90%; }
+.modal h3 { margin-bottom: 16px; color: #1f2937; }
+.form-group { margin-bottom: 12px; }
+.form-group label { display: block; font-size: 14px; margin-bottom: 4px; color: #333; }
+.form-group input, .form-group textarea { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box; }
+.form-group input:focus, .form-group textarea:focus { outline: none; border-color: #409eff; box-shadow: 0 0 0 2px rgba(64,158,255,0.2); }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.cancel-btn { padding: 6px 16px; background: #ccc; border: none; border-radius: 4px; cursor: pointer; }
+.confirm-btn { padding: 6px 16px; background: #409eff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+.cancel-btn:hover { background: #b3b3b3; }
+.confirm-btn:hover { background: #337ecc; }
+@media (max-width: 768px) { .book-manage-page { padding: 20px; } .table th, .table td { padding: 10px 8px; font-size: 12px; } .stock-input { width: 60px; } .save-stock-btn, .edit-btn, .off-btn, .on-btn { padding: 4px 6px; font-size: 11px; } }
 </style>

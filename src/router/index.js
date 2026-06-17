@@ -105,7 +105,13 @@ const routes = [
   {
     path: '/:pathMatch(.*)*',
     redirect: '/home'
-  }
+  },
+    {
+  path: '/operation-logs',
+  name: 'OperationLogs',
+  component: () => import('@/views/OperationLogPage.vue'),
+  meta: { requiresAuth: true, requiresAdmin: true }
+}
 ];
 
 // 创建路由实例
