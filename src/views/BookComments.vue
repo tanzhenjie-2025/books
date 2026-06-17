@@ -47,7 +47,7 @@
             <span v-for="star in 5" :key="star" :class="{ 'star-filled': comment.score >= star }">★</span>
           </span>
           <!-- 显示待审核状态 -->
-          <span class="comment-audit" v-if="!comment.isAudit">【待审核】</span>
+
           <span class="comment-time">{{ formatDate(comment.createTime) }}</span>
         </div>
         <div class="comment-content">{{ comment.content || '无评价内容' }}</div>
