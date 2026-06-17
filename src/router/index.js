@@ -15,7 +15,7 @@ import AddBook from '@/views/AddBook.vue';
 import BookComments from '@/views/BookComments.vue';
 import AdminCommentAudit from '@/views/AdminCommentAudit.vue';
 // 导入导出图书组件（新增）
-import ExportPage from '@/views/ExportPage.vue';
+import ExportPage from '@/views/ImportExportPage.vue';
 
 // 路由规则
 const routes = [
@@ -97,11 +97,11 @@ const routes = [
   },
   // 导出图书路由（修正后）
   {
-    path: '/export',
-    name: 'Export',
-    component: ExportPage,
-    meta: { requiresAuth: true, requiresAdmin: true }   // 使用 requiresAdmin 匹配守卫逻辑
-  },
+    path: '/import-export',
+    name: 'ImportExport',
+    component: () => import('@/views/ImportExportPage.vue'), // 懒加载
+    meta: { requiresAuth: true, requiresAdmin: true }
+},
   {
     path: '/:pathMatch(.*)*',
     redirect: '/home'
